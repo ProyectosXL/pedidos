@@ -1,130 +1,166 @@
-<?php 
-
-session_start(); 
-if(!isset($_SESSION['username'])){
-	header("Location:../login.php");
-}else{
-
+<?php
+session_start();
+if (!isset($_SESSION['username'])) {
+    header("Location:../login.php");
+} else {
 
 $local = $_SESSION['descLocal'];
 
-
-$_SESSION['numsuc'] = isset($_SESSION['numsuc']) ? $_SESSION['numsuc'] : 100;
+$_SESSION['numsuc']    = isset($_SESSION['numsuc'])    ? $_SESSION['numsuc']    : 100;
 $_SESSION['codClient'] = 'Cordoba';
-$codClient = 'Cordoba';
-$habPedidos =  '00';
-$deposi = '00';
-$dashboard = isset($_SESSION['dashboard']) ? $_SESSION['dashboard'] : '';
+$codClient             = 'Cordoba';
+$habPedidos            = '00';
+$deposi                = '00';
+$dashboard             = isset($_SESSION['dashboard']) ? $_SESSION['dashboard'] : '';
 
-
-$powerbiUrl = isset($_SESSION['POWERBI_URL']) && !empty($_SESSION['POWERBI_URL']) 
-    ? $_SESSION['POWERBI_URL'] 
-    : 'https://app.powerbi.com/view?r=eyJrIjoiY2U5MDc4NzEtMTVkYy00YTNmLWJmNjYtMWRiZjBhZTM1OGI3IiwidCI6IjQ0Y2E2MmNkLTY4MjItNDZkNC05NTUxLTEzNDQ5N2ZmM2VjMiIsImMiOjR9'; // Fallback
-$permiteMayoristas = isset($_SESSION['PERMITE_MAYORISTAS']) ? $_SESSION['PERMITE_MAYORISTAS'] : true; // Por defecto true para Córdoba
-
-
+$powerbiUrl = isset($_SESSION['POWERBI_URL']) && !empty($_SESSION['POWERBI_URL'])
+    ? $_SESSION['POWERBI_URL']
+    : 'https://app.powerbi.com/view?r=eyJrIjoiY2U5MDc4NzEtMTVkYy00YTNmLWJmNjYtMWRiZjBhZTM1OGI3IiwidCI6IjQ0Y2E2MmNkLTY4MjItNDZkNC05NTUxLTEzNDQ5N2ZmM2VjMiIsImMiOjR9';
+$permiteMayoristas = isset($_SESSION['PERMITE_MAYORISTAS']) ? $_SESSION['PERMITE_MAYORISTAS'] : true;
 
 ?>
-<!DOCTYPE HTML>
-<html charset="UTF-8">
-
+<!DOCTYPE html>
+<html lang="es">
 <head>
-<title>XL Extralarge - Inicio</title>	
-<meta charset="UTF-8"></meta>
-<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <title>XL Gestión — Pedidos</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="../images/logo.jpg" type="image/jpeg">
 
-<?php include '../assets/css/header_simple.php'; ?>
-<?php include_once __DIR__.'/../assets/css/fontawesome/css.php';?>
-<link rel="stylesheet" href="../ajustes/css/msj-seincomp.css">
-<link rel="stylesheet" href="../css/index.css"> 
-<link rel="stylesheet" href="https://unpkg.com/bootstrap-submenu@3.0.1/dist/css/bootstrap-submenu.css">
-<style>
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-	.dropdown-submenu {
-	position: relative;
-	}
-
-	.dropdown-submenu a::after {
-	transform: rotate(-90deg);
-	position: absolute;
-	right: 6px;
-	top: .8em;
-	}
-
-	.dropdown-submenu .dropdown-menu {
-	top: 0;
-	left: 100%;
-	margin-left: .1rem;
-	margin-right: .1rem;
-	}
-
-</style>
-
-<title>INICIO</title>
-
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
-<body>	
-<div class="container">
-	<?php	
-	include_once '../Controlador/nav_menu.php';
-	?>
+<body>
 
-	<!-- CARTEL DE BIENVENIDA -->
+    <!-- ===== HEADER FIJO ===== -->
+    <header class="xl-header">
+        <div class="xl-header-left">
+            <div class="xl-logo-box">XL</div>
+            <span class="xl-header-title">Gestión de Pedidos</span>
+        </div>
+        <div class="xl-header-right">
+            <span class="xl-user-name"><?= htmlspecialchars($local) ?></span>
+            <a href="/ppp/franquicias/grupo/index.php" class="btn-volver">
+                <i class="fa-solid fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </header>
 
-	<div class="form-group" style="margin-top: 0.5rem;">
-			<div class="col-">
-				<div class="mb-1">
-					<div class="row" style="display: flex; justify-content: center;">
-						<div class="col-"><h2>Bienvenido Original Products 1966 srl</h2></div>
-					</div>
-					<div class="row" style="display: flex; justify-content: center;">
-						<div class="col-"><h2 class="text-secondary"><?php echo $local; ?></h2></div>
-					</div>
-				</div>
-				<?php
-			
-				?>
-			</div>
+    <!-- ===== CONTENIDO PRINCIPAL ===== -->
+    <main class="xl-main">
+        <div class="container" style="max-width: 1080px;">
 
-			<div class="col-" style="margin-top: 1rem; display: flex; justify-content: center;"> 
-				<img src="../Controlador/logo.jpg" style="height: 150px; width: 200px">
-			</div>
-		</div>
-	</div>
+            <!-- BIENVENIDA -->
+            <div class="welcome-card mb-4">
+                <img src="../images/logo.jpg" alt="Logo XL">
+                <div class="welcome-text">
+                    <h2>Bienvenido Original Products 1966 srl</h2>
+                    <p><?= htmlspecialchars($local) ?></p>
+                </div>
+            </div>
 
-	<?php include_once __DIR__ . '/../assets/css/fontawesome/js.php'; ?>
-	
-	<!-- Bootstrap JS -->
-	<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
-	
-	<script>
-	$(document).ready(function() {
-		// Inicializar dropdowns de Bootstrap
-		$('.dropdown-toggle').dropdown();
-		
-		// Script para dropdown-submenu
-		$('.dropdown-menu a.dropdown-toggle').on('click', function(e) {
-		  if (!$(this).next().hasClass('show')) {
-		    $(this).parents('.dropdown-menu').first().find('.show').removeClass("show");
-		  }
-		  var $subMenu = $(this).next(".dropdown-menu");
-		  $subMenu.toggleClass('show');
+            <!-- HERRAMIENTAS -->
+            <div class="section-label">Herramientas Disponibles</div>
 
+            <div class="row g-3">
 
-		  $(this).parents('li.nav-item.dropdown.show').on('hidden.bs.dropdown', function(e) {
-		    $('.dropdown-submenu .show').removeClass("show");
-		  });
+                <!-- Pedido General -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tool-card">
+                        <div class="card-icon-box">
+                            <i class="fa-solid fa-box"></i>
+                        </div>
+                        <div class="card-title">Pedido General</div>
+                        <div class="card-desc">
+                            Carga de pedidos de productos como carteras, calzados, equipaje y packaging.
+                        </div>
+                        <hr class="card-divider">
+                        <div class="card-tags">
+                            <span class="card-tag"><i class="fa-solid fa-warehouse"></i> Stock</span>
+                            <span class="card-tag"><i class="fa-solid fa-store"></i> Sucursales</span>
+                        </div>
+                        <a href="pedidos/general.php" class="btn-action">
+                            <i class="fa-solid fa-arrow-right"></i> Cargar Pedido
+                        </a>
+                    </div>
+                </div>
 
+                <!-- Pedido Accesorios -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tool-card">
+                        <div class="card-icon-box">
+                            <i class="fa-solid fa-tags"></i>
+                        </div>
+                        <div class="card-title">Pedido Accesorios</div>
+                        <div class="card-desc">
+                            Carga de pedidos de accesorios como billeteras, paraguas, lentes, relojes, etc.
+                        </div>
+                        <hr class="card-divider">
+                        <div class="card-tags">
+                            <span class="card-tag"><i class="fa-solid fa-tag"></i> Accesorios</span>
+                            <span class="card-tag"><i class="fa-solid fa-chart-bar"></i> Ventas</span>
+                        </div>
+                        <a href="pedidos/accesorios.php" class="btn-action">
+                            <i class="fa-solid fa-arrow-right"></i> Cargar Pedido
+                        </a>
+                    </div>
+                </div>
 
-		  return false;
-		});
-	});
-	</script>
+                <!-- Historial de Pedidos -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tool-card">
+                        <div class="card-icon-box">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div class="card-title">Historial de Pedidos</div>
+                        <div class="card-desc">
+                            Consulta de pedidos realizados, estado y detalle por sucursal.
+                        </div>
+                        <hr class="card-divider">
+                        <div class="card-tags">
+                            <span class="card-tag"><i class="fa-solid fa-list"></i> Pedidos</span>
+                            <span class="card-tag"><i class="fa-solid fa-circle-check"></i> Estado</span>
+                        </div>
+                        <a href="pedidos/historial.php" class="btn-action">
+                            <i class="fa-solid fa-arrow-right"></i> Ver Historial
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Guías de Transporte -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tool-card">
+                        <div class="card-icon-box">
+                            <i class="fa-solid fa-truck"></i>
+                        </div>
+                        <div class="card-title">Guías de Transporte</div>
+                        <div class="card-desc">
+                            Seguimiento de guías de despacho con factura y remitos por sucursal.
+                        </div>
+                        <hr class="card-divider">
+                        <div class="card-tags">
+                            <span class="card-tag"><i class="fa-solid fa-file-lines"></i> Guías</span>
+                            <span class="card-tag"><i class="fa-solid fa-receipt"></i> Remitos</span>
+                        </div>
+                        <a href="../logistica/guiasDespacho/franquicias.php" class="btn-action">
+                            <i class="fa-solid fa-arrow-right"></i> Ver Guías
+                        </a>
+                    </div>
+                </div>
+
+            </div><!-- /row -->
+        </div><!-- /container -->
+    </main>
+
+    <!-- Bootstrap 5.3 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
-
+</html>
 <?php
 }
 ?>
-

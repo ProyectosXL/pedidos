@@ -1,6 +1,8 @@
 
 <?php
 
+if (class_exists('Conexion')) return;
+
 class Conexion{
 
     function __construct(){

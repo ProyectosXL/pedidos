@@ -2,13 +2,13 @@
 session_start();
 
 if (!isset($_SESSION['username'])) {
-	header("Location:login.php");
+	header("Location:../login.php");
 	exit;
 }
 
 if ($_SESSION['nuevoPedido'] == 1 && $_SESSION['cargaPedido'] == 1) {
 	// Conexión usando la clase Conexion (misma forma que el resto de Córdoba)
-	require_once __DIR__ . '/../class/conexion.php';
+	require_once __DIR__ . '/../../class/conexion.php';
 	$conexion = new Conexion();
 	$cid = $conexion->conectar('central');
 
@@ -26,13 +26,13 @@ if ($_SESSION['nuevoPedido'] == 1 && $_SESSION['cargaPedido'] == 1) {
 		die("Error al ejecutar TRUNCATE: " . print_r(sqlsrv_errors(), true));
 	}
 } else {
-	header("Location:login.php");
+	header("Location:../login.php");
 	exit;
 }
 ?>
 
 <script>
 	setTimeout(function () {
-		window.location.href = 'eligeSucCordoba.php';
+		window.location.href = '../eligeSucCordoba.php';
 	}, 1000);
 </script>

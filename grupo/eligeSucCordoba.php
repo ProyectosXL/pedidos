@@ -284,7 +284,7 @@ if (!isset($_SESSION['username'])) {
 				<i class="fas fa-list"></i> Lista de Sucursales
 			</div>
 			<div class="card-body p-0">
-				<form id="formulario" action="cargaPedidoCordoba.php" method="post">
+				<form id="formulario" action="controller/cargaPedido.php" method="post">
 					<div class="table-container">
 						<table class="table table-hover mb-0" id="id_tabla">
 							<thead>
