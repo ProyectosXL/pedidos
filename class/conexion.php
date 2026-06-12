@@ -8,7 +8,7 @@ class Conexion{
     function __construct(){
         require_once(__DIR__.'/classEnv.php');
 
-        $vars = new DotEnv(__DIR__ . '/../.env');
+        $vars = new DotEnv(DotEnv::resolveEnvPath());
         $this->envVars = $vars->listVars();
         
         $this->host_central = $this->envVars['HOST_CENTRAL'];
@@ -27,7 +27,7 @@ class Conexion{
 
     private function servidor($nameServer) {
         if($nameServer == 'central'){
-            return array('servidor', 'LAKER_SA');
+            return array($this->host_central, $this->database_central);
         }elseif($nameServer == 'locales'){
             return array($this->host_locales, $this->database_locales);
         }elseif($nameServer == 'uy'){
@@ -79,6 +79,53 @@ class Conexion{
         }
     }
 
+    /**
+     * Obtiene configuración de conexión de varias sucursales en una sola consulta a central.
+     * @param int[] $nroSucursales
+     * @return array<int, array>
+     */
+    public function obtenerConfiguracionesSucursales(array $nroSucursales) {
+        $nroSucursales = array_values(array_unique(array_filter(array_map('intval', $nroSucursales))));
+        if (empty($nroSucursales)) {
+            return [];
+        }
+
+        $conn = $this->conectar('central');
+        if (!$conn) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($nroSucursales), '?'));
+        $sql = "SELECT NRO_SUCURSAL, CONEXION_DNS, BASE_NOMBRE, USUARIO_DNS, CLAVE_DNS
+                FROM [LAKERBIS].locales_lakers.dbo.SUCURSALES_LAKERS
+                WHERE NRO_SUC_MADRE IS NULL
+                AND NRO_SUCURSAL IN ($placeholders)";
+
+        $stmt = sqlsrv_query($conn, $sql, $nroSucursales);
+        if ($stmt === false) {
+            error_log('Error en obtenerConfiguracionesSucursales: ' . print_r(sqlsrv_errors(), true));
+            return [];
+        }
+
+        $configs = [];
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $configs[(int) $row['NRO_SUCURSAL']] = $row;
+        }
+        sqlsrv_free_stmt($stmt);
+
+        return $configs;
+    }
+
+    public function aplicarConfiguracionSucursal(array $row) {
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['conexion_dns'] = $row['CONEXION_DNS'];
+        $_SESSION['base_nombre'] = $row['BASE_NOMBRE'];
+        $_SESSION['usuario_dns'] = $row['USUARIO_DNS'];
+        $_SESSION['clave_dns'] = $row['CLAVE_DNS'];
+    }
+
     public function conectar($nameServer = null) {
         try {
             if (session_status() == PHP_SESSION_NONE) {
@@ -128,7 +175,9 @@ class Conexion{
                 "Database" => $serverDB[1], 
                 "UID" => $usuario_final, 
                 "PWD" => $clave_final, 
-                "CharacterSet" => $this->character
+                "CharacterSet" => $this->character,
+                "LoginTimeout" => 10,
+                "ConnectionPooling" => 0,
             );
         
             $cid = sqlsrv_connect($serverDB[0], $params);

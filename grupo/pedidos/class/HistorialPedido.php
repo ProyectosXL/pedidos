@@ -5,18 +5,38 @@ class HistorialPedido
     private $cid;
     public $cid_central;
 
+    /** @var array<int, string> */
+    private static $debugTrace = [];
+
     function __construct()
     {
-        require_once '../../class/conexion.php';
+        require_once __DIR__ . '/../../../class/conexion.php';
+        require_once __DIR__ . '/../../../class/GrupoSesion.php';
+        GrupoSesion::iniciar();
         $this->cid = new Conexion();
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
+        $this->cid_central = $this->cid->conectar(GrupoSesion::obtenerBaseDatos());
+        $this->logDebug('constructor', [
+            'db'        => GrupoSesion::obtenerBaseDatos(),
+            'conectado' => $this->cid_central !== false,
+        ]);
+    }
+
+    /** @return array<int, string> */
+    public static function getDebugTrace()
+    {
+        return self::$debugTrace;
+    }
+
+  /**
+     * @param array<string, mixed> $context
+     */
+    private function logDebug(string $paso, array $context = [])
+    {
+        $line = '[HistorialPedido][' . $paso . '] ' . json_encode($context, JSON_UNESCAPED_UNICODE);
+        error_log($line);
+        if (!empty($_GET['debug']) && $_GET['debug'] === '1') {
+            self::$debugTrace[] = $line;
         }
-        $db = 'central';
-        if(isset($_SESSION['usuarioUy']) && $_SESSION['usuarioUy'] == 1){
-            $db = 'uy';
-        }
-        $this->cid_central = $this->cid->conectar($db);
     }
 
     /**
@@ -28,22 +48,35 @@ class HistorialPedido
      */
     public function traerHistorialPorSucursal($sucursal, $desde, $hasta)
     {
+        $this->logDebug('traerHistorialPorSucursal_inicio', compact('sucursal', 'desde', 'hasta'));
+
         if (!$this->cid_central) {
+            $this->logDebug('traerHistorialPorSucursal_abort', ['motivo' => 'sin_conexion_central']);
             return [];
         }
-
 
         require_once __DIR__.'/../../../class/sucursal.php';
         $sucursalObj = new Sucursal();
         $idFranquicia = isset($_SESSION['ID_FRANQUICIA']) ? $_SESSION['ID_FRANQUICIA'] : null;
-        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, 'central');
-        
-        if (!in_array($sucursal, $sucursalesValidas)) {
+        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, GrupoSesion::obtenerBaseDatos());
+
+        $this->logDebug('traerHistorialPorSucursal_sucursales', [
+            'id_franquicia'      => $idFranquicia,
+            'sucursales_validas' => $sucursalesValidas,
+            'sucursales_grupo'   => $_SESSION['sucursalesGrupo'] ?? null,
+            'sucursales_activas' => $_SESSION['sucursales_activas'] ?? null,
+        ]);
+
+        if (!in_array($sucursal, $sucursalesValidas, true)) {
+            $this->logDebug('traerHistorialPorSucursal_abort', [
+                'motivo'   => 'sucursal_no_valida',
+                'sucursal' => $sucursal,
+            ]);
             return [];
         }
 
-        // Validar formato de fecha
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta)) {
+            $this->logDebug('traerHistorialPorSucursal_abort', ['motivo' => 'fechas_invalidas', 'desde' => $desde, 'hasta' => $hasta]);
             return [];
         }
 
@@ -75,6 +108,12 @@ class HistorialPedido
             ORDER BY 1 desc, 2 desc
         ";
 
+        $this->logDebug('traerHistorialPorSucursal_sql', [
+            'codigos_count' => count($sucursalesValidas),
+            'desde'         => $desde,
+            'hasta'         => $hasta,
+        ]);
+
         ini_set('max_execution_time', 300);
 
         try {
@@ -82,18 +121,19 @@ class HistorialPedido
 
             if ($stmt === false) {
                 $errors = sqlsrv_errors();
-                error_log("Error en traerHistorialPorSucursal: " . print_r($errors, true));
+                $this->logDebug('traerHistorialPorSucursal_sql_error', ['errors' => $errors]);
                 return [];
             }
 
             $rows = array();
             while ($v = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                // Convertir fecha de DateTime a string si es necesario
                 if (isset($v['FECHA']) && $v['FECHA'] instanceof DateTime) {
                     $v['FECHA'] = $v['FECHA']->format('Y-m-d');
                 }
                 $rows[] = $v;
             }
+
+            $this->logDebug('traerHistorialPorSucursal_fin', ['filas' => count($rows)]);
 
             return $rows;
         } catch (\Throwable $th) {
@@ -114,24 +154,48 @@ class HistorialPedido
      */
     public function traerHistorialTodasSucursales($desde, $hasta)
     {
+        $this->logDebug('traerHistorialTodasSucursales_inicio', compact('desde', 'hasta'));
+
         if (!$this->cid_central) {
+            $this->logDebug('traerHistorialTodasSucursales_abort', ['motivo' => 'sin_conexion_central']);
             return [];
         }
 
-        // Validar formato de fecha
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta)) {
+            $this->logDebug('traerHistorialTodasSucursales_abort', ['motivo' => 'fechas_invalidas', 'desde' => $desde, 'hasta' => $hasta]);
             return [];
         }
 
-        // Escapar valores para SQL (aunque ya están validados)
-        $desde = str_replace("'", "''", $desde);
-        $hasta = str_replace("'", "''", $hasta);
+        $desdeSql = str_replace("'", "''", $desde);
+        $hastaSql = str_replace("'", "''", $hasta);
 
         require_once __DIR__.'/../../../class/sucursal.php';
         $sucursalObj = new Sucursal();
         $idFranquicia = isset($_SESSION['ID_FRANQUICIA']) ? $_SESSION['ID_FRANQUICIA'] : null;
-        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, 'central');
-        $codigosSQL = "'" . implode("', '", array_map(function($cod) { return str_replace("'", "''", $cod); }, $sucursalesValidas)) . "'";
+        $db = GrupoSesion::obtenerBaseDatos();
+        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, $db);
+        $mapeoGrupo = $sucursalObj->resolverMapeoCodigosGrupo($db);
+
+        $this->logDebug('traerHistorialTodasSucursales_sucursales', [
+            'db'                 => $db,
+            'id_franquicia'      => $idFranquicia,
+            'cod_client_sesion'  => $_SESSION['codClient'] ?? null,
+            'sucursales_validas' => $sucursalesValidas,
+            'mapeo_grupo'        => $mapeoGrupo,
+            'sucursales_grupo'   => $_SESSION['sucursalesGrupo'] ?? null,
+            'sucursales_activas' => $_SESSION['sucursales_activas'] ?? null,
+        ]);
+
+        if (empty($sucursalesValidas)) {
+            $this->logDebug('traerHistorialTodasSucursales_abort', [
+                'motivo' => 'lista_codigos_cliente_vacia',
+            ]);
+            return [];
+        }
+
+        $codigosSQL = "'" . implode("', '", array_map(function ($cod) {
+            return str_replace("'", "''", $cod);
+        }, $sucursalesValidas)) . "'";
 
         $sql = "
             SET DATEFORMAT YMD
@@ -148,9 +212,16 @@ class HistorialPedido
             ON A.NRO_PEDIDO = B.NRO_PEDIDO
             WHERE COD_CLIENT IN ($codigosSQL)
             AND FECHA_PEDI > (GETDATE()-60) 
-            AND (FECHA_PEDI BETWEEN '$desde' AND '$hasta')
+            AND (FECHA_PEDI BETWEEN '$desdeSql' AND '$hastaSql')
             ORDER BY 1 desc, 2 desc
         ";
+
+        $this->logDebug('traerHistorialTodasSucursales_sql', [
+            'codigos'     => $sucursalesValidas,
+            'desde'       => $desde,
+            'hasta'       => $hasta,
+            'sql_preview' => preg_replace('/\s+/', ' ', substr($sql, 0, 500)),
+        ]);
 
         ini_set('max_execution_time', 300);
 
@@ -159,18 +230,19 @@ class HistorialPedido
 
             if ($stmt === false) {
                 $errors = sqlsrv_errors();
-                error_log("Error en traerHistorialTodasSucursales: " . print_r($errors, true));
+                $this->logDebug('traerHistorialTodasSucursales_sql_error', ['errors' => $errors]);
                 return [];
             }
 
             $rows = array();
             while ($v = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                // Convertir fecha de DateTime a string si es necesario
                 if (isset($v['FECHA']) && $v['FECHA'] instanceof DateTime) {
                     $v['FECHA'] = $v['FECHA']->format('Y-m-d');
                 }
                 $rows[] = $v;
             }
+
+            $this->logDebug('traerHistorialTodasSucursales_fin', ['filas' => count($rows)]);
 
             return $rows;
         } catch (\Throwable $th) {

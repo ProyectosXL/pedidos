@@ -1,23 +1,8 @@
 <?php
-session_start();
-if (!isset($_SESSION['username'])) {
-    header("Location:../login.php");
-} else {
+require_once __DIR__ . '/../class/GrupoSesion.php';
 
-$local = $_SESSION['descLocal'];
-
-$_SESSION['numsuc']    = isset($_SESSION['numsuc'])    ? $_SESSION['numsuc']    : 100;
-$_SESSION['codClient'] = 'Cordoba';
-$codClient             = 'Cordoba';
-$habPedidos            = '00';
-$deposi                = '00';
-$dashboard             = isset($_SESSION['dashboard']) ? $_SESSION['dashboard'] : '';
-
-$powerbiUrl = isset($_SESSION['POWERBI_URL']) && !empty($_SESSION['POWERBI_URL'])
-    ? $_SESSION['POWERBI_URL']
-    : 'https://app.powerbi.com/view?r=eyJrIjoiY2U5MDc4NzEtMTVkYy00YTNmLWJmNjYtMWRiZjBhZTM1OGI3IiwidCI6IjQ0Y2E2MmNkLTY4MjItNDZkNC05NTUxLTEzNDQ5N2ZmM2VjMiIsImMiOjR9';
-$permiteMayoristas = isset($_SESSION['PERMITE_MAYORISTAS']) ? $_SESSION['PERMITE_MAYORISTAS'] : true;
-
+$vista = GrupoSesion::prepararDashboard();
+extract($vista, EXTR_SKIP);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -58,7 +43,7 @@ $permiteMayoristas = isset($_SESSION['PERMITE_MAYORISTAS']) ? $_SESSION['PERMITE
             <div class="welcome-card mb-4">
                 <img src="../images/logo.jpg" alt="Logo XL">
                 <div class="welcome-text">
-                    <h2>Bienvenido Original Products 1966 srl</h2>
+                    <h2>Bienvenido <?= htmlspecialchars($nombreEmpresa) ?></h2>
                     <p><?= htmlspecialchars($local) ?></p>
                 </div>
             </div>
@@ -156,11 +141,22 @@ $permiteMayoristas = isset($_SESSION['PERMITE_MAYORISTAS']) ? $_SESSION['PERMITE
         </div><!-- /container -->
     </main>
 
+    <?php if ($mostrarModalCarga): ?>
+    <?php include __DIR__ . '/views/modal-carga-alertas.php'; ?>
+    <?php endif; ?>
+
     <!-- Bootstrap 5.3 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <?php if ($mostrarModalCarga): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var modalEl = document.getElementById('modalSucursalesFallidas');
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+    </script>
+    <?php endif; ?>
 
 </body>
 </html>
-<?php
-}
-?>

@@ -1,9 +1,9 @@
 <?php 
-session_start(); 
-if(!isset($_SESSION['username'])){
-	header("Location:../../login.php");
-} else {
-	include_once __DIR__.'/../../class/pedido.php';
+require_once __DIR__ . '/../../class/GrupoSesion.php';
+GrupoSesion::requiereLogin('../../login.php');
+GrupoSesion::redirigirSiCargaPendiente('../controller/cargaPedido.php');
+
+include_once __DIR__.'/../../class/pedido.php';
 	require_once $_SERVER['DOCUMENT_ROOT'] . '/sistemas/assets/js/js.php';
 	require_once $_SERVER['DOCUMENT_ROOT'] . '/sistemas/Controlador/cargaPedidoNew.php';
 	
@@ -26,43 +26,8 @@ if(!isset($_SESSION['username'])){
 
 	require_once __DIR__.'/../../class/sucursal.php';
 	$sucursalObj = new Sucursal();
-	
-
-	if (isset($_SESSION['ID_FRANQUICIA'])) {
-		$sucursalesLista = $sucursalObj->listarSucursalesPorFranquicia($_SESSION['ID_FRANQUICIA'], $db);
-
-		$sucursalesActivas = [];
-		$sucursalesInfo = [];
-		foreach ($sucursalesLista as $suc) {
-			$nroSuc = (string)$suc['N_IMPUESTO'];
-			$sucursalesActivas[] = $nroSuc;
-			$sucursalesInfo[$nroSuc] = [
-				'nombre' => $suc['NOM_COM'],
-				'codClient' => $suc['COD_CLIENT'],
-				'nombreCompleto' => $suc['NOM_COM']
-			];
-		}
-	} else {
-
-		$sucursalesActivas = isset($_SESSION['sucursales_activas']) ? $_SESSION['sucursales_activas'] : ['812', '813', '814', '815', '816', '876', '940'];
-		$sucursalesInfo = [
-			'812' => ['nombre' => 'BAULERA', 'codClient' => 'FRBAUD', 'nombreCompleto' => 'BAULERA'],
-			'813' => ['nombre' => 'VELEZ', 'codClient' => 'FRORCE', 'nombreCompleto' => 'VELEZ'],
-			'814' => ['nombre' => 'DINO', 'codClient' => 'FRORIG', 'nombreCompleto' => 'DINO'],
-			'815' => ['nombre' => 'NVO CENTRO', 'codClient' => 'FRORNC', 'nombreCompleto' => 'NVO CENTRO'],
-			'816' => ['nombre' => 'SAN JUAN', 'codClient' => 'FRORSJ', 'nombreCompleto' => 'SAN JUAN'],
-			'876' => ['nombre' => 'JOCKEY', 'codClient' => 'FRPASJ', 'nombreCompleto' => 'JOCKEY'],
-			'940' => ['nombre' => 'RIVERA', 'codClient' => 'FRPRIN', 'nombreCompleto' => 'RIVERA']
-		];
-	}
-	
-	// Filtrar solo las sucursales activas
-	$sucursalesActivasInfo = [];
-	foreach ($sucursalesActivas as $suc) {
-		if (isset($sucursalesInfo[$suc])) {
-			$sucursalesActivasInfo[$suc] = $sucursalesInfo[$suc];
-		}
-	}
+	$resolucionSucursales = $sucursalObj->construirSucursalesActivasParaPedido($db);
+	$sucursalesActivasInfo = $resolucionSucursales['info'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -497,7 +462,6 @@ if(!isset($_SESSION['username'])){
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
     <script src="js/main.js?v=<?= filemtime(__DIR__ . '/js/main.js') ?>"></script>
-    <script src="js/controlCantidad.js?v=<?= filemtime(__DIR__ . '/js/controlCantidad.js') ?>"></script>
     <script src="../../pedidos/js/envio.js"></script>
     <script src="../../pedidos/js/jquery.table2excel.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -636,4 +600,3 @@ if(!isset($_SESSION['username'])){
     </script>
 </body>
 </html>
-<?php } ?>
