@@ -98,47 +98,55 @@ class Sucursal {
                 return [];
             }
 
+            $collate = 'Modern_Spanish_CI_AI';
             $placeholders = implode(',', array_fill(0, count($numeros), '?'));
             $sql = "
             SELECT
-                CAST(A.N_IMPUESTO AS INT) AS N_IMPUESTO,
-                COALESCE(NULLIF(LTRIM(RTRIM(S.COD_CLIENTE)), ''), A.COD_CLIENT) AS COD_CLIENT,
+                CAST(S.NRO_SUCURSAL AS INT) AS N_IMPUESTO,
                 COALESCE(
-                    NULLIF(LTRIM(RTRIM(S.NOMBRE_SUCURSAL)), ''),
-                    NULLIF(LTRIM(RTRIM(A.NOM_COM)), ''),
-                    NULLIF(LTRIM(RTRIM(L.DESC_SUCURSAL)), '')
+                    NULLIF(LTRIM(RTRIM(S.COD_CLIENTE COLLATE $collate)), ''),
+                    NULLIF(LTRIM(RTRIM(L.COD_CLIENT COLLATE $collate)), ''),
+                    LTRIM(RTRIM(A.COD_CLIENT COLLATE $collate))
+                ) AS COD_CLIENT,
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(S.NOMBRE_SUCURSAL COLLATE $collate)), ''),
+                    NULLIF(LTRIM(RTRIM(L.DESC_SUCURSAL COLLATE $collate)), ''),
+                    NULLIF(LTRIM(RTRIM(A.NOM_COM COLLATE $collate)), '')
                 ) AS NOM_COM,
-                COALESCE(NULLIF(LTRIM(RTRIM(S.DSN)), ''), NULLIF(LTRIM(RTRIM(B.DSN)), ''), '') AS DSN
-            FROM GVA14 A
-            LEFT JOIN SOF_USUARIOS B
-                ON CAST(A.N_IMPUESTO AS INT) = B.NRO_SUCURS
-            LEFT JOIN SJ_SUCURSALES_FRANQUICIA S
-                ON CAST(A.N_IMPUESTO AS INT) = S.NRO_SUCURSAL AND S.ACTIVO = 1
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(S.DSN COLLATE $collate)), ''),
+                    NULLIF(LTRIM(RTRIM(B.DSN COLLATE $collate)), ''),
+                    ''
+                ) AS DSN
+            FROM SJ_SUCURSALES_FRANQUICIA S
             LEFT JOIN [LAKERBIS].locales_lakers.dbo.SUCURSALES_LAKERS L
-                ON CAST(A.N_IMPUESTO AS INT) = L.NRO_SUCURSAL AND L.NRO_SUC_MADRE IS NULL
-            WHERE CAST(A.N_IMPUESTO AS INT) IN ($placeholders)
-            ORDER BY A.N_IMPUESTO
+                ON S.NRO_SUCURSAL = L.NRO_SUCURSAL AND L.NRO_SUC_MADRE IS NULL
+            LEFT JOIN GVA14 A
+                ON LTRIM(RTRIM(A.COD_CLIENT COLLATE $collate)) = LTRIM(RTRIM(S.COD_CLIENTE COLLATE $collate))
+            LEFT JOIN SOF_USUARIOS B
+                ON S.NRO_SUCURSAL = B.NRO_SUCURS
+            WHERE S.NRO_SUCURSAL IN ($placeholders) AND S.ACTIVO = 1
+            ORDER BY S.NRO_SUCURSAL
             ";
+
+            $sucursales = [];
+            $encontrados = [];
 
             $stmt = sqlsrv_query($cid, $sql, $numeros);
             if ($stmt === false) {
                 error_log('Error en listarSucursalesPorNumeros: ' . print_r(sqlsrv_errors(), true));
-                return [];
-            }
-
-            $sucursales = [];
-            $encontrados = [];
-            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                $nro = (int) $row['N_IMPUESTO'];
-                $encontrados[$nro] = true;
-                if (empty(trim((string) ($row['NOM_COM'] ?? '')))) {
-                    $row['NOM_COM'] = 'Sucursal ' . $nro;
+            } else {
+                while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                    $nro = (int) $row['N_IMPUESTO'];
+                    $encontrados[$nro] = true;
+                    if (empty(trim((string) ($row['NOM_COM'] ?? '')))) {
+                        $row['NOM_COM'] = 'Sucursal ' . $nro;
+                    }
+                    $sucursales[] = $row;
                 }
-                $sucursales[] = $row;
+                sqlsrv_free_stmt($stmt);
             }
-            sqlsrv_free_stmt($stmt);
 
-            // Sucursales no presentes en GVA14: buscar solo en franquicia / lakers
             $faltantes = array_values(array_filter($numeros, function ($n) use ($encontrados) {
                 return !isset($encontrados[$n]);
             }));
@@ -147,18 +155,27 @@ class Sucursal {
                 $ph2 = implode(',', array_fill(0, count($faltantes), '?'));
                 $sql2 = "
                 SELECT
-                    CAST(S.NRO_SUCURSAL AS INT) AS N_IMPUESTO,
-                    S.COD_CLIENTE AS COD_CLIENT,
-                    COALESCE(NULLIF(LTRIM(RTRIM(S.NOMBRE_SUCURSAL)), ''), NULLIF(LTRIM(RTRIM(L.DESC_SUCURSAL)), '')) AS NOM_COM,
-                    COALESCE(NULLIF(LTRIM(RTRIM(S.DSN)), ''), '') AS DSN
-                FROM SJ_SUCURSALES_FRANQUICIA S
-                LEFT JOIN [LAKERBIS].locales_lakers.dbo.SUCURSALES_LAKERS L
-                    ON S.NRO_SUCURSAL = L.NRO_SUCURSAL AND L.NRO_SUC_MADRE IS NULL
-                WHERE S.NRO_SUCURSAL IN ($ph2) AND S.ACTIVO = 1
-                ORDER BY S.NRO_SUCURSAL
+                    CAST(L.NRO_SUCURSAL AS INT) AS N_IMPUESTO,
+                    LTRIM(RTRIM(A.COD_CLIENT COLLATE $collate)) AS COD_CLIENT,
+                    COALESCE(
+                        NULLIF(LTRIM(RTRIM(L.DESC_SUCURSAL COLLATE $collate)), ''),
+                        NULLIF(LTRIM(RTRIM(A.NOM_COM COLLATE $collate)), '')
+                    ) AS NOM_COM,
+                    COALESCE(NULLIF(LTRIM(RTRIM(B.DSN COLLATE $collate)), ''), '') AS DSN
+                FROM [LAKERBIS].locales_lakers.dbo.SUCURSALES_LAKERS L
+                LEFT JOIN GVA14 A
+                    ON LTRIM(RTRIM(A.COD_CLIENT COLLATE $collate)) = LTRIM(RTRIM(L.COD_CLIENT COLLATE $collate))
+                LEFT JOIN SOF_USUARIOS B
+                    ON L.NRO_SUCURSAL = B.NRO_SUCURS
+                WHERE L.NRO_SUCURSAL IN ($ph2)
+                  AND L.NRO_SUC_MADRE IS NULL
+                  AND L.HABILITADO = 1
+                ORDER BY L.NRO_SUCURSAL
                 ";
                 $stmt2 = sqlsrv_query($cid, $sql2, $faltantes);
-                if ($stmt2 !== false) {
+                if ($stmt2 === false) {
+                    error_log('Error en listarSucursalesPorNumeros (Lakers): ' . print_r(sqlsrv_errors(), true));
+                } else {
                     while ($row = sqlsrv_fetch_array($stmt2, SQLSRV_FETCH_ASSOC)) {
                         $nro = (int) $row['N_IMPUESTO'];
                         $encontrados[$nro] = true;
