@@ -1,61 +1,117 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../class/GrupoSesion.php';
 
-if(!isset($_SESSION['username'])){
+GrupoSesion::requiereLogin('../login.php');
 
-	header("Location:../login.php");
+if (empty($_SESSION['sucursalesGrupo']) || !is_array($_SESSION['sucursalesGrupo'])) {
+	$_SESSION['carga_pedido_error'] = 'No hay sucursales configuradas para el grupo empresario.';
+	header('Location: ../index.php');
+	exit;
+}
 
-}else{
+set_time_limit(300);
+ini_set('max_execution_time', '300');
 
-echo '<h3 align="center">Aguarde un momento por favor</h3>';
+/**
+ * Inserta filas en SOF_PEDIDOS_CARGA_LOPEZ en lotes de 200 (límite SQL Server ~2100 params).
+ * @param resource $cidCentral
+ * @param array<int, array{num_suc: int, cod_articu: string, cant_stock: float, cant_vend: float}> $filas
+ */
+function insertarLoteCargaLopez($cidCentral, array $filas) {
+	if (empty($filas)) {
+		return true;
+	}
 
-// Guardar sucursales activas en sesión para filtrar columnas después
-// Solo se agregarán las que se conecten exitosamente
-$sucursalesActivas = [];
-$sucursalesInfo = []; // Mapeo de número de sucursal a información
+	$loteSize = 200;
+	foreach (array_chunk($filas, $loteSize) as $lote) {
+		$placeholders = [];
+		$params = [];
+		foreach ($lote as $fila) {
+			$placeholders[] = '(?, ?, ?, ?)';
+			$params[] = $fila['num_suc'];
+			$params[] = $fila['cod_articu'];
+			$params[] = $fila['cant_stock'];
+			$params[] = $fila['cant_vend'];
+		}
+
+		$sql = 'INSERT INTO SOF_PEDIDOS_CARGA_LOPEZ (NUM_SUC, COD_ARTICU, CANT_STOCK, VENDIDO) VALUES '
+			. implode(', ', $placeholders);
+
+		if (sqlsrv_query($cidCentral, $sql, $params) === false) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 require_once __DIR__ . '/../../class/sucursal.php';
 require_once __DIR__ . '/../../class/conexion.php';
 
-$sucursalObj = new Sucursal();
-$idFranquicia = isset($_SESSION['ID_FRANQUICIA']) ? $_SESSION['ID_FRANQUICIA'] : null;
-$sucursalToCodClient = $sucursalObj->obtenerMapeoSucursalCodCliente($idFranquicia, 'central');
-$_SESSION['sucursal_to_codclient'] = $sucursalToCodClient;
+$sucursalesGrupo = $_SESSION['sucursalesGrupo'];
+$totalSucursales = count($sucursalesGrupo);
 
-// Conexión central usando clase Conexion (sin ODBC)
+if (empty($_SESSION['pedido_grupo_cargado'])) {
+	unset($_SESSION['sucursales_activas'], $_SESSION['sucursales_info']);
+}
+
+$sucursalObj = new Sucursal();
+$infoSucursales = $sucursalObj->listarSucursalesPorNumeros($sucursalesGrupo, 'central');
+$infoPorNumero = [];
+foreach ($infoSucursales as $row) {
+	$infoPorNumero[(int) $row['N_IMPUESTO']] = $row;
+}
+
 $conexionCentral = new Conexion();
 $cidCentral = $conexionCentral->conectar('central');
 
 if ($cidCentral === false) {
-	echo "</br></br><H3 ALIGN='CENTER' style='color:red;'>ERROR: No se pudo conectar con la base central.</H3></br>";
-} else {
-	// Limpiar tabla antes de cargar nuevos datos
-	$sqlTruncate = "TRUNCATE TABLE SOF_PEDIDOS_CARGA_LOPEZ";
-	@sqlsrv_query($cidCentral, $sqlTruncate);
+	$_SESSION['carga_pedido_error'] = 'No se pudo conectar con la base central.';
+	header('Location: ../index.php');
+	exit;
 }
 
-// Procesar solo las sucursales activas (si la base central está disponible)
-if ($cidCentral !== false) {
-	for($i=0;$i<count($_POST['suc']);$i++){
-		$suc = $_POST['suc'][$i];
-		$dsn = $_POST['dsn'][$i]; // mantenemos por compatibilidad en mensajes
+sqlsrv_configure('QueryTimeout', 90);
+$configSucursales = $conexionCentral->obtenerConfiguracionesSucursales($sucursalesGrupo);
 
-		$selec = $_POST['selec'][$i];
+header('Content-Type: text/html; charset=UTF-8');
+while (ob_get_level() > 0) {
+	ob_end_flush();
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Cargando sucursales...</title>
+	<style>
+		body { font-family: system-ui, sans-serif; background: #f5f7fa; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+		.box { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.08); max-width: 420px; width: 90%; text-align: center; }
+		.spinner { width: 40px; height: 40px; border: 4px solid #e9ecef; border-top-color: #667eea; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 1rem; }
+		@keyframes spin { to { transform: rotate(360deg); } }
+		#status { color: #495057; font-size: .95rem; margin: 0; }
+	</style>
+</head>
+<body>
+	<div class="box">
+		<div class="spinner"></div>
+		<h2 style="margin:0 0 .5rem;font-size:1.15rem;">Conectando sucursales</h2>
+		<p id="status">Preparando carga (0 / <?= (int) $totalSucursales ?>)</p>
+	</div>
+</body>
+</html>
+<?php
+flush();
 
-		if($selec == 'si'){
+@sqlsrv_query($cidCentral, 'TRUNCATE TABLE SOF_PEDIDOS_CARGA_LOPEZ');
 
-		// Obtener conexión a la sucursal usando la clase Conexion
-		$conexionSucursal = new Conexion();
+$sucursalesActivas = [];
+$sucursalesInfo = [];
+$fallidas = [];
+$errorFatal = null;
 
-		// Configurar DNS y base para la sucursal seleccionada
-		if (!$conexionSucursal->setearDnsBaseName($suc)) {
-			echo "</br></br><H3 ALIGN='CENTER' style='color:orange;'>ADVERTENCIA: No se encontró configuración para sucursal $suc</H3></br>";
-			continue;
-		}
-
-		$cid = $conexionSucursal->conectar();
-
-		$sql1 = "
+$sqlStock = "
 	SET DATEFORMAT YMD
 	SELECT COD_ARTICU, CANT_STOCK, CASE WHEN VENDIDO IS NULL THEN 0 ELSE VENDIDO END VENDIDO  FROM
 	(
@@ -75,65 +131,98 @@ if ($cidCentral !== false) {
 	)
 	GROUP BY A.COD_ARTICU, A.CANT_STOCK, B.VENDIDO
 	)A
-	";
+";
 
-		ini_set('max_execution_time', 300);
+$procesadas = 0;
+foreach ($sucursalesGrupo as $sucRaw) {
+	$procesadas++;
+	$suc = (int) $sucRaw;
+	$nombre = isset($infoPorNumero[$suc]['NOM_COM']) && trim((string) $infoPorNumero[$suc]['NOM_COM']) !== ''
+		? trim((string) $infoPorNumero[$suc]['NOM_COM'])
+		: ('Sucursal ' . $suc);
+	$dsn = isset($infoPorNumero[$suc]['DSN']) ? $infoPorNumero[$suc]['DSN'] : '';
 
-		// Verificar si la conexión fue exitosa
-		if ($cid === false) {
-			// Error de conexión - no agregar esta sucursal a activas
-			echo "</br></br><H3 ALIGN='CENTER' style='color:orange;'>ADVERTENCIA: No se pudo conectar con sucursal $suc ($dsn)</H3></br>";
-			continue; // Continuar con la siguiente sucursal
-		}
+	echo '<script>document.getElementById("status").textContent = ' . json_encode(
+		'Conectando ' . $nombre . ' (' . $procesadas . ' / ' . $totalSucursales . ')'
+	) . ';</script>' . "\n";
+	flush();
 
-		$result1 = @sqlsrv_query($cid, $sql1);
-
-		// Verificar si la ejecución de la consulta fue exitosa
-		if ($result1 === false) {
-			// Error al ejecutar consulta - no agregar esta sucursal a activas
-			echo "</br></br><H3 ALIGN='CENTER' style='color:orange;'>ADVERTENCIA: Error al ejecutar consulta para sucursal $suc</H3></br>";
-			continue; // Continuar con la siguiente sucursal
-		}
-
-		// Si llegamos aquí, la conexión fue exitosa - agregar a sucursales activas
-		if (!in_array($suc, $sucursalesActivas)) {
-			$sucursalesActivas[] = $suc;
-			$sucursalesInfo[$suc] = [
-				'dsn' => $dsn,
-				'selec' => $selec
-			];
-		}
-
-		while($v = sqlsrv_fetch_array($result1, SQLSRV_FETCH_ASSOC)){
-			$codArticu = trim((string) $v['COD_ARTICU']);
-
-			$cantStock = (float) str_replace(',', '.', $v['CANT_STOCK']);
-			$cantVend  = (float) str_replace(',', '.', $v['VENDIDO'] ?? 0);
-
-			$sql2 = "
-			INSERT INTO SOF_PEDIDOS_CARGA_LOPEZ (NUM_SUC, COD_ARTICU, CANT_STOCK, VENDIDO)
-			VALUES (?, ?, ?, ?);
-			";
-
-			$params2 = array((int) $suc, $codArticu, $cantStock, $cantVend);
-
-			ini_set('max_execution_time', 300);
-			$resultInsert = sqlsrv_query($cidCentral, $sql2, $params2);
-
-			if ($resultInsert === false) {
-				die("</br></br>IMPOSIBLE CONECTARSE CON BASE CENTRAL PARA INSERTAR DATOS");
-			}
-		}
-
-		}
-
+	if (!isset($configSucursales[$suc])) {
+		$fallidas[] = [
+			'numero' => $suc,
+			'nombre' => $nombre,
+			'motivo' => 'No se encontró configuración de conexión para la sucursal.',
+		];
+		continue;
 	}
+
+	$conexionSucursal = new Conexion();
+	$conexionSucursal->aplicarConfiguracionSucursal($configSucursales[$suc]);
+	$cid = $conexionSucursal->conectar();
+
+	if ($cid === false) {
+		$fallidas[] = [
+			'numero' => $suc,
+			'nombre' => $nombre,
+			'motivo' => 'No se pudo conectar' . ($dsn !== '' ? " ($dsn)" : '') . ' (timeout 10s).',
+		];
+		continue;
+	}
+
+	$result1 = @sqlsrv_query($cid, $sqlStock);
+
+	if ($result1 === false) {
+		$fallidas[] = [
+			'numero' => $suc,
+			'nombre' => $nombre,
+			'motivo' => 'Error al ejecutar la consulta de stock y ventas.',
+		];
+		sqlsrv_close($cid);
+		continue;
+	}
+
+	$sucStr = (string) $suc;
+	if (!in_array($sucStr, $sucursalesActivas, true)) {
+		$sucursalesActivas[] = $sucStr;
+		$sucursalesInfo[$sucStr] = [
+			'dsn' => $dsn,
+			'nombre' => $nombre,
+			'codClient' => isset($infoPorNumero[$suc]['COD_CLIENT']) ? $infoPorNumero[$suc]['COD_CLIENT'] : '',
+		];
+	}
+
+	$filasSucursal = [];
+	while ($v = sqlsrv_fetch_array($result1, SQLSRV_FETCH_ASSOC)) {
+		$filasSucursal[] = [
+			'num_suc'    => $suc,
+			'cod_articu' => trim((string) $v['COD_ARTICU']),
+			'cant_stock' => (float) str_replace(',', '.', $v['CANT_STOCK']),
+			'cant_vend'  => (float) str_replace(',', '.', $v['VENDIDO'] ?? 0),
+		];
+	}
+
+	if ($errorFatal === null && !empty($filasSucursal)) {
+		if (!insertarLoteCargaLopez($cidCentral, $filasSucursal)) {
+			$errorFatal = 'Error al guardar datos en la base central.';
+			break;
+		}
+	}
+
+	sqlsrv_free_stmt($result1);
+	sqlsrv_close($cid);
 }
 
-// Guardar en sesión solo las sucursales que se conectaron exitosamente
+if ($errorFatal !== null) {
+	$_SESSION['carga_pedido_error'] = $errorFatal;
+} elseif (empty($sucursalesActivas)) {
+	$_SESSION['carga_pedido_error'] = 'No se pudo conectar con ninguna sucursal del grupo empresario.';
+}
+
 $_SESSION['sucursales_activas'] = $sucursalesActivas;
 $_SESSION['sucursales_info'] = $sucursalesInfo;
+$_SESSION['sucursales_conexion_fallidas'] = $fallidas;
+$_SESSION['pedido_grupo_cargado'] = true;
+$_SESSION['nuevoPedido'] = 0;
 
-}
-?>
-<script>setTimeout(function () {window.location.href= '../index.php';},1000);</script>
+echo '<script>window.location.href = "../index.php";</script>';
+exit;

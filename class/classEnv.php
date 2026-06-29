@@ -10,9 +10,29 @@ class DotEnv
      */
     protected $path;
 
-
-    public function __construct(string $path)
+    public static function resolveEnvPath()
     {
+        $local = __DIR__ . '/../.env';
+        if (file_exists($local)) {
+            return $local;
+        }
+
+        if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+            $sistemas = $_SERVER['DOCUMENT_ROOT'] . '/sistemas/.env';
+            if (file_exists($sistemas)) {
+                return $sistemas;
+            }
+        }
+
+        return $local;
+    }
+
+    public function __construct(?string $path = null)
+    {
+        if ($path === null) {
+            $path = self::resolveEnvPath();
+        }
+
         if(!file_exists($path)) {
             throw new \InvalidArgumentException(sprintf('%s does not exist', $path));
         }
@@ -45,7 +65,7 @@ class DotEnv
     }
 
     public function listVars(){
-        (new DotEnv(__DIR__ . '/../.env'))->load();
+        (new DotEnv(self::resolveEnvPath()))->load();
 
         $vars = array(
 

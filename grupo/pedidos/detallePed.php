@@ -1,25 +1,18 @@
-<?php 
-session_start(); 
-if(!isset($_SESSION['username'])){
-	header("Location:../../login.php");
-}else{
-	
-$permiso = $_SESSION['permisos'];
+<?php
+require_once __DIR__ . '/../../class/GrupoSesion.php';
+GrupoSesion::requiereLogin('../../login.php');
 
-// Obtener parámetros
 $suc = isset($_GET['suc']) ? $_GET['suc'] : '';
 $pedido = isset($_GET['pedido']) ? $_GET['pedido'] : '';
 $desde = isset($_GET['desde']) ? $_GET['desde'] : '';
 $hasta = isset($_GET['hasta']) ? $_GET['hasta'] : '';
 
-// Incluir la clase de historial
-require_once __DIR__.'/class/HistorialPedido.php';
+require_once __DIR__ . '/class/HistorialPedido.php';
 $historial = new HistorialPedido();
 
-// Obtener detalle del pedido
 $detalles = [];
 if ($pedido && $suc) {
-	$detalles = $historial->traerDetallePedido($pedido, $suc);
+    $detalles = $historial->traerDetallePedido($pedido, $suc);
 }
 ?>
 <!DOCTYPE html>
@@ -206,4 +199,3 @@ if (empty($detalles)) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
 </body>
 </html>
-<?php } ?>

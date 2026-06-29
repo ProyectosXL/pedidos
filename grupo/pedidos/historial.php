@@ -1,18 +1,18 @@
-<?php 
-session_start(); 
-if(!isset($_SESSION['username'])){
-	header("Location:../../login.php");
-}else{
-	
-$permiso = $_SESSION['permisos'];
+<?php
+require_once __DIR__ . '/../../class/GrupoSesion.php';
+require_once __DIR__ . '/../../class/sucursal.php';
 
-// Establecer fechas por defecto
+GrupoSesion::requiereLogin('../../login.php');
+
 $ayer = date('Y-m-d', strtotime('-1 day'));
 $desde = isset($_GET['desde']) ? $_GET['desde'] : $ayer;
 $hasta = isset($_GET['hasta']) ? $_GET['hasta'] : $ayer;
+$sucursalSeleccionada = $_GET['sucursal'] ?? 'TODOS';
 
-// Incluir la clase de historial
-require_once __DIR__.'/class/HistorialPedido.php';
+$sucursalObj = new Sucursal();
+$opcionesSucursales = $sucursalObj->obtenerSucursalesParaSelector(GrupoSesion::obtenerBaseDatos());
+
+require_once __DIR__ . '/class/HistorialPedido.php';
 $historial = new HistorialPedido();
 ?>
 <!DOCTYPE html>
@@ -138,14 +138,12 @@ $historial = new HistorialPedido();
                     <div class="col-md-2">
                         <label class="form-label fw-bold">Sucursal:</label>
                         <select class="form-select form-select-sm" name="sucursal" id="sucursal">
-                            <option value="TODOS" <?= (!isset($_GET['sucursal']) || $_GET['sucursal'] == 'TODOS') ? 'selected' : '' ?>>Todos</option> 
-                            <option value="FRBAUD" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRBAUD') ? 'selected' : '' ?>>BAULERA</option> 
-                            <option value="FRORCE" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRORCE') ? 'selected' : '' ?>>VELEZ</option> 
-                            <option value="FRORIG" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRORIG') ? 'selected' : '' ?>>DINO</option> 
-                            <option value="FRORNC" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRORNC') ? 'selected' : '' ?>>NUEVO CENTRO</option> 
-                            <option value="FRORSJ" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRORSJ') ? 'selected' : '' ?>>SAN JUAN</option> 
-                            <option value="FRPASJ" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRPASJ') ? 'selected' : '' ?>>PASEO DEL JOCKEY</option> 
-                            <option value="FRPRIN" <?= (isset($_GET['sucursal']) && $_GET['sucursal'] == 'FRPRIN') ? 'selected' : '' ?>>RIVERA</option> 
+                            <option value="TODOS" <?= $sucursalSeleccionada === 'TODOS' ? 'selected' : '' ?>>Todos</option>
+                            <?php foreach ($opcionesSucursales as $opcion): ?>
+                            <option value="<?= htmlspecialchars($opcion['codigo']) ?>" <?= $sucursalSeleccionada === $opcion['codigo'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($opcion['nombre']) ?>
+                            </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -178,8 +176,6 @@ $historial = new HistorialPedido();
     </div>
 
     <div class="container-fluid table-wrapper">
-
-
 
 <?php
 
@@ -319,6 +315,14 @@ if(isset($_GET['sucursal'])){
 }
 ?>
 
+<?php if (!empty($_GET['debug']) && $_GET['debug'] === '1'): ?>
+    <div class="alert alert-secondary small mb-3">
+        <strong>Debug historial</strong>
+        <?php if (isset($resultados)): ?> — <?= count($resultados) ?> fila(s)<?php endif; ?>
+        <pre class="mb-0 mt-2" style="max-height: 320px; overflow: auto; font-size: 0.75rem;"><?= htmlspecialchars(implode("\n", HistorialPedido::getDebugTrace())) ?></pre>
+    </div>
+<?php endif; ?>
+
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -358,4 +362,3 @@ if(isset($_GET['sucursal'])){
     </script>
 </body>
 </html>
-<?php } ?>
