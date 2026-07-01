@@ -419,8 +419,8 @@ include_once __DIR__.'/../../class/pedido.php';
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/main.js"></script>
-    <script src="../../pedidos/js/envio.js"></script>
-    <script src="../../pedidos/js/jquery.table2excel.js"></script>
+    <!-- <script src="../../pedidos/js/envio.js"></script>
+    <script src="../../pedidos/js/jquery.table2excel.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         $(document).ready(function() {
