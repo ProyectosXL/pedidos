@@ -138,6 +138,8 @@ class Pedido {
             while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 $v[] = $row;
             }
+
+            $v = $this->enriquecerPedidosConCargaLopez($v, $this->obtenerNumerosSucursalesGrupoSesion(), $cid);
     
             return $v;
         }
@@ -205,6 +207,8 @@ class Pedido {
             while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 $v[] = $row;
             }
+
+            $v = $this->enriquecerPedidosConCargaLopez($v, $this->obtenerNumerosSucursalesGrupoSesion(), $cid);
     
             return $v;
         }
@@ -218,6 +222,84 @@ class Pedido {
                 sqlsrv_free_stmt($stmt);
             }
         }
+    }
+
+    /**
+     * Números de sucursal del grupo en sesión (activas o grupo completo).
+     * @return int[]
+     */
+    private function obtenerNumerosSucursalesGrupoSesion() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $numeros = [];
+        if (!empty($_SESSION['sucursales_activas']) && is_array($_SESSION['sucursales_activas'])) {
+            $numeros = $_SESSION['sucursales_activas'];
+        } elseif (!empty($_SESSION['sucursalesGrupo']) && is_array($_SESSION['sucursalesGrupo'])) {
+            $numeros = $_SESSION['sucursalesGrupo'];
+        }
+        return array_values(array_unique(array_filter(array_map('intval', $numeros))));
+    }
+
+    /**
+     * Completa {NUM}_STOCK y {NUM}_VENDIDO desde SOF_PEDIDOS_CARGA_LOPEZ cuando el SP
+     * solo pivotea sucursales hardcodeadas (ej. Córdoba 812–940).
+     *
+     * @param array<int, array<string, mixed>> $pedidos
+     * @param int[] $numerosSuc
+     * @param resource $cid
+     * @return array<int, array<string, mixed>>
+     */
+    private function enriquecerPedidosConCargaLopez(array $pedidos, array $numerosSuc, $cid) {
+        if (empty($pedidos) || empty($numerosSuc) || $cid === false) {
+            return $pedidos;
+        }
+
+        $numerosSuc = array_values(array_unique(array_filter(array_map('intval', $numerosSuc))));
+        $faltantes = [];
+        foreach ($numerosSuc as $nro) {
+            if (!array_key_exists($nro . '_STOCK', $pedidos[0])) {
+                $faltantes[] = $nro;
+            }
+        }
+        if (empty($faltantes)) {
+            return $pedidos;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($faltantes), '?'));
+        $sql = "SELECT NUM_SUC, LTRIM(RTRIM(COD_ARTICU)) AS COD_ARTICU, CANT_STOCK, VENDIDO
+                FROM SOF_PEDIDOS_CARGA_LOPEZ
+                WHERE NUM_SUC IN ($placeholders)";
+        $stmt = sqlsrv_query($cid, $sql, $faltantes);
+        if ($stmt === false) {
+            error_log('enriquecerPedidosConCargaLopez: ' . print_r(sqlsrv_errors(), true));
+            return $pedidos;
+        }
+
+        $mapa = [];
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $cod = trim((string) ($row['COD_ARTICU'] ?? ''));
+            $nro = (int) ($row['NUM_SUC'] ?? 0);
+            if ($cod === '' || $nro <= 0) {
+                continue;
+            }
+            $mapa[$cod][$nro] = [
+                'stock' => (float) ($row['CANT_STOCK'] ?? 0),
+                'vend'  => (float) ($row['VENDIDO'] ?? 0),
+            ];
+        }
+        sqlsrv_free_stmt($stmt);
+
+        foreach ($pedidos as $idx => $fila) {
+            $cod = trim((string) ($fila['COD_ARTICU'] ?? ''));
+            foreach ($faltantes as $nro) {
+                $datos = $mapa[$cod][$nro] ?? null;
+                $pedidos[$idx][$nro . '_STOCK']   = (int) ($datos['stock'] ?? 0);
+                $pedidos[$idx][$nro . '_VENDIDO'] = (int) ($datos['vend'] ?? 0);
+            }
+        }
+
+        return $pedidos;
     }
 
     public function traerHistorial($codClient, $usuarioUy = 0){
