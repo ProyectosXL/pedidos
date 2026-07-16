@@ -17,8 +17,22 @@ function normalizarValorInput(valor) {
   return String(parseInt(valor, 10) || 0);
 }
 
+function desmarcarCasilleroModificadoEnSesion(input) {
+  if (!input) return;
+  input.dataset.modificadoSesion = "0";
+  input.classList.remove("pedido-input-session-modified");
+  input.style.backgroundColor = "";
+  input.style.border = "";
+  input.style.fontWeight = "";
+  if (input.parentElement) {
+    input.parentElement.classList.remove("pedido-cell-session-modified");
+    input.parentElement.style.backgroundColor = "";
+  }
+}
+
 function marcarCasilleroModificadoEnSesion(input) {
-  if (!input || input.dataset.modificadoSesion === "1") return;
+  if (!input) return;
+  if (input.dataset.modificadoSesion === "1") return;
   input.dataset.modificadoSesion = "1";
   input.classList.add("pedido-input-session-modified");
   if (input.parentElement) {
@@ -31,22 +45,27 @@ function marcarCasilleroModificadoEnSesion(input) {
   input.style.fontWeight = "700";
 }
 
+/**
+ * Resalta casilleros con cantidad > 0; quita el resaltado si vuelve a 0.
+ */
 function registrarCambioSesion(input) {
   if (!input) return;
   if (typeof valoresInicialesSesion.get(input) === "undefined") {
     valoresInicialesSesion.set(input, normalizarValorInput(input.value));
   }
   const valorActual = parseInt(input.value, 10) || 0;
-  // Si el usuario cargó una cantidad, marcar inmediatamente el casillero.
   if (valorActual > 0) {
     marcarCasilleroModificadoEnSesion(input);
-    return;
+  } else {
+    desmarcarCasilleroModificadoEnSesion(input);
   }
-  const valorInicial = valoresInicialesSesion.get(input);
-  if (typeof valorInicial === "undefined") return;
-  if (normalizarValorInput(input.value) !== valorInicial) {
-    marcarCasilleroModificadoEnSesion(input);
-  }
+}
+
+/** Aplica resaltado a todos los inputs de cantidad > 0 (p. ej. tras restaurar borrador). */
+function resaltarCasillerosConCantidad() {
+  document.querySelectorAll("#id_tabla input[name^='cantPed_']").forEach(function (input) {
+    registrarCambioSesion(input);
+  });
 }
 
 function total() {
@@ -260,6 +279,9 @@ function restaurarBorrador() {
         // Recalcular totales y actualizar artCargados
         if (typeof total === 'function') total();
         if (typeof precioTotal === 'function') precioTotal();
+
+        // Resaltar todos los casilleros restaurados con cantidad > 0
+        resaltarCasillerosConCantidad();
         
         // Actualizar artCargados con los artículos restaurados
         artCargados = [];
@@ -540,9 +562,40 @@ function buscarArticulo(codigo) {
 
 /***********************************************************************************************************************************************************  */
 //controlar stock
-/*  form.addEventListener("submit",controlar); */
-form.addEventListener("submit", function (e) {
-  e.preventDefault();
+const DEBUG_ENVIO = (function () {
+  try {
+    return localStorage.getItem('debug_envio') === '1'
+      || /(?:\?|&)debug_envio=1(?:&|$)/.test(window.location.search || '');
+  } catch (e) {
+    return false;
+  }
+})();
+
+function logEnvio(paso, detalle) {
+  var msg = '[ENVIO] ' + paso + (detalle ? ' | ' + detalle : '');
+  console.log(msg);
+  if (DEBUG_ENVIO && typeof Swal !== 'undefined') {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'info',
+      title: paso,
+      text: detalle || '',
+      timer: 2500,
+      showConfirmButton: false
+    });
+  }
+}
+
+if (!form) {
+  console.error('[ENVIO] No se encontró #formulario — el botón Enviar no podrá postear a cargarPedidoNuevoCordoba.php');
+}
+
+function iniciarEnvioPedido(e) {
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
+  logEnvio('1. submit capturado', 'inicio del flujo');
   
   // Guardar borrador antes de enviar
   guardarBorrador();
@@ -558,6 +611,7 @@ form.addEventListener("submit", function (e) {
   });
   
   if (inputsInvalidos.length > 0) {
+    logEnvio('STOP: validación', inputsInvalidos.length + ' inputs inválidos');
     Swal.fire({
       icon: 'error',
       title: 'Error de validación',
@@ -570,20 +624,48 @@ form.addEventListener("submit", function (e) {
     }
     return false;
   }
-  
-  preloader.style.display='block';
-  traerStock();
 
-  /*  e.preventDefault() */
-});
+  // Reconstruir artCargados desde el formulario (por si se restauró borrador o no hubo blur)
+  artCargados = [];
+  document.querySelectorAll("#id_tabla tbody tr").forEach(function (fila) {
+    let codigoInput = fila.querySelector('input[name="codArt[]"], input[name^="codArt["]');
+    let codigo = codigoInput ? codigoInput.value.trim() : '';
+    if (!codigo) return;
+    let totalFila = 0;
+    fila.querySelectorAll("input[type=number][name^='cantPed_']").forEach(function (el) {
+      totalFila += parseInt(el.value || 0, 10) || 0;
+    });
+    if (totalFila > 0) {
+      artCargados.push({ codigo: codigo, cantidad: totalFila });
+    }
+  });
+
+  logEnvio('2. artículos a pedir', artCargados.length + ' SKU(s)');
+
+  if (artCargados.length === 0) {
+    logEnvio('STOP: pedido vacío');
+    Swal.fire({
+      icon: 'warning',
+      title: 'Pedido vacío',
+      text: 'Debe ingresar al menos una cantidad mayor a cero antes de enviar.',
+    });
+    return false;
+  }
+  
+  if (preloader) preloader.style.display = 'block';
+  logEnvio('3. llamando traerStock.php');
+  traerStock();
+  return false;
+}
+
+window.enviarPedidoGrupo = iniciarEnvioPedido;
+
+form && form.addEventListener("submit", iniciarEnvioPedido);
 /* document.getElementById('btnEnviar').addEventListener('click',controlar); */
 
 function controlar() {
-  /*  e.preventDefault(); */
-  /*  form.preventDefault(); */
   console.log("que queres");
   traerStock();
-  /* controlarStockActual(); */
 }
 
 let conexion1;
@@ -591,27 +673,61 @@ function traerStock() {
   // vuelvo a traer el stock para chequear si este fue modificado
   conexion1 = new XMLHttpRequest();
   conexion1.onreadystatechange = () => {
-    if (conexion1.readyState == 4 && conexion1.status == 200) {
-      console.log("entraste a traerStock");
-      stock = JSON.parse(conexion1.responseText);
-      console.log('erer: '+stock);
-      controlarStockActual();
+    if (conexion1.readyState != 4) return;
+
+    logEnvio('4. respuesta traerStock', 'HTTP ' + conexion1.status);
+
+    if (conexion1.status != 200) {
+      if (preloader) preloader.style.display = 'none';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al verificar stock',
+        text: 'No se pudo consultar el stock actual (HTTP ' + conexion1.status + '). Intente nuevamente.',
+      });
+      return;
     }
+
+    try {
+      stock = JSON.parse(conexion1.responseText);
+    } catch (err) {
+      if (preloader) preloader.style.display = 'none';
+      logEnvio('STOP: JSON inválido', String(conexion1.responseText || '').slice(0, 200));
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al verificar stock',
+        html: 'La respuesta del servidor no es válida.<br><small>Abrí F12 → Network → traerStock.php</small>',
+      });
+      return;
+    }
+
+    if (!Array.isArray(stock)) {
+      if (preloader) preloader.style.display = 'none';
+      logEnvio('STOP: stock no es array', JSON.stringify(stock).slice(0, 200));
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al verificar stock',
+        text: (stock && stock.error) ? stock.error : 'No se pudo obtener el stock actual.',
+      });
+      return;
+    }
+
+    logEnvio('5. stock OK', stock.length + ' artículos; controlando…');
+    controlarStockActual();
   };
 
-  conexion1.open("GET", "traerStock.php?title="+documentTitle, true);
+  conexion1.open("GET", "traerStock.php?title=" + encodeURIComponent(documentTitle), true);
   conexion1.send();
 }
 var encontrado;
 function controlarStockActual() {
   let b;
+  stockModificado = [];
   for (let i = 0; i < artCargados.length; i++) {
     b = 0;
     for (let x = 0; x < stock.length; x++) {
       if (stock[x].COD_ARTICU == artCargados[i].codigo.trim()) {
         b = 1;
         encontrado = stock[x];
-        console.log("asdf" + encontrado);
         if (artCargados[i].cantidad > encontrado.CANT_STOCK) {
           stockModificado.push(artCargados[i].codigo);
         }
@@ -621,12 +737,10 @@ function controlarStockActual() {
     if (b == 0) {
       stockModificado.push(artCargados[i].codigo);
     }
-    /*   encontrado = stock.find(el => 
-      el.COD_ARTICU = artCargados[i].codigo.trim()
-    ); */
   }
-  preloader.style.display='none';
-  console.log("encontrado: " + encontrado);
+  if (preloader) preloader.style.display = 'none';
+  logEnvio('6. control stock', stockModificado.length ? ('problemas: ' + stockModificado.join(', ')) : 'sin problemas');
+
   if (stockModificado.length > 0) {
     // Resaltar artículos con problemas
     resaltarArticulosProblema(stockModificado);
@@ -652,8 +766,6 @@ function controlarStockActual() {
       allowEscapeKey: false
     }).then((result) => {
       if (result.isConfirmed) {
-        // Mantener los datos y permitir corrección
-        // Los artículos ya están resaltados en rojo
         Swal.fire({
           icon: 'info',
           title: 'Corrija los artículos resaltados',
@@ -662,21 +774,68 @@ function controlarStockActual() {
           timer: 5000,
           showConfirmButton: true
         });
-        // El usuario puede corregir y volver a enviar
       } else {
-        // Recargar página (el borrador se restaurará automáticamente)
         location.reload();
       }
     });
-    
-    // Limpiar el array para la próxima validación
-    stockModificado = [];
   } else {
     // Todo está bien, limpiar borrador y enviar
     localStorage.removeItem('pedido_borrador_' + documentTitle);
     limpiarResaltado();
-    /*  form.submit(); */
+    if (preloader) preloader.style.display = 'block';
+    prepararFormularioEnvioCompacto(form);
     form.action = "cargarPedidoNuevoCordoba.php";
+    logEnvio('7. POST a cargarPedidoNuevoCordoba.php', 'enviando formulario…');
     form.submit();
   }
+}
+
+/**
+ * Evita el error PHP "Input variables exceeded 1000" (max_input_vars).
+ * Solo envía filas con al menos una cantidad > 0, y omite cantidades en 0.
+ */
+function prepararFormularioEnvioCompacto(formulario) {
+  if (!formulario) return;
+
+  const filas = formulario.querySelectorAll("#id_tabla tbody tr");
+  let indice = 0;
+
+  filas.forEach(function (fila) {
+    const inputsCant = fila.querySelectorAll("input[type=number][name^='cantPed_']");
+    let totalFila = 0;
+    inputsCant.forEach(function (inp) {
+      totalFila += parseInt(inp.value || "0", 10) || 0;
+    });
+
+    const codArt = fila.querySelector('input[name="codArt[]"], input[name^="codArt["]');
+    const rubro = fila.querySelector('input[name="rubro[]"], input[name^="rubro["]');
+    const stock = fila.querySelector('input[name="stock[]"], input[name^="stock["]');
+
+    if (totalFila <= 0) {
+      fila.querySelectorAll("input").forEach(function (el) {
+        el.disabled = true;
+      });
+      return;
+    }
+
+    if (codArt) codArt.name = "codArt[" + indice + "]";
+    if (rubro) rubro.name = "rubro[" + indice + "]";
+    if (stock) stock.name = "stock[" + indice + "]";
+
+    inputsCant.forEach(function (inp) {
+      const match = String(inp.name || "").match(/^cantPed_(\d+)/);
+      if (!match) {
+        inp.disabled = true;
+        return;
+      }
+      const valor = parseInt(inp.value || "0", 10) || 0;
+      if (valor <= 0) {
+        inp.disabled = true;
+        return;
+      }
+      inp.name = "cantPed_" + match[1] + "[" + indice + "]";
+    });
+
+    indice++;
+  });
 }

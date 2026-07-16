@@ -307,11 +307,22 @@ include_once __DIR__.'/../../class/pedido.php';
                 });
             });
 
-            // Botón Enviar del header - enviar el formulario
+            // Botón Enviar del header - dispara submit NATIVO (requestSubmit)
+            // Nota: $('#formulario').submit() de jQuery NO ejecuta addEventListener('submit') de main.js
             $('#btnEnviar').on('click', function(e) {
                 e.preventDefault();
-                // Disparar el evento submit del formulario
-                $('#formulario').submit();
+                var formEl = document.getElementById('formulario');
+                if (!formEl) {
+                    console.error('No se encontró #formulario');
+                    return;
+                }
+                if (typeof formEl.requestSubmit === 'function') {
+                    formEl.requestSubmit();
+                } else if (typeof window.enviarPedidoGrupo === 'function') {
+                    window.enviarPedidoGrupo();
+                } else {
+                    formEl.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
             });
 
             // Botón Restaurar Borrador
