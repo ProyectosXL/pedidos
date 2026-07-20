@@ -408,8 +408,25 @@ class CrearPedido
         TALONARIO, TALON_PED, TOTAL_PEDI,
         TIPO_ASIEN, ID_ASIENTO_MODELO_GV, TAL_PE_ORI,
         FECHA_INGRESO, FECHA_ULTIMA_MODIFICACION, ID_DIRECCION_ENTREGA,
-        ES_PEDIDO_WEB, FECHA_O_COMP,  TOTAL_DESC_TIENDA, PORCEN_DESC_TIENDA,
-        HORA_INGRESO
+        ES_PEDIDO_WEB, FECHA_O_COMP, TOTAL_DESC_TIENDA, PORCEN_DESC_TIENDA,
+        HORA_INGRESO,
+        APLICA_DESCUENTO_CLIENTE,
+        ES_CLOUD,
+        IMPORTE_DESCUENTO_CLIENTE,
+        IMPORTE_DESCUENTO_GENERAL,
+        IMPORTE_DESCUENTO_GENERAL_SIN_IMPUESTOS,
+        IMPORTE_FLETE,
+        IMPORTE_FLETE_SIN_IMPUESTOS,
+        IMPORTE_INTERES,
+        IMPORTE_INTERES_SIN_IMPUESTOS,
+        IMPORTE_RECARGO_GENERAL,
+        IMPORTE_RECARGO_GENERAL_SIN_IMPUESTOS,
+        PORCENTAJE_DESCUENTO_CLIENTE,
+        PORCENTAJE_FLETE,
+        PORCENTAJE_INTERES,
+        PORCENTAJE_RECARGO_GENERAL,
+        TOTAL_EXENTO,
+        ID_MONEDA
         )
         VALUES
         (
@@ -425,7 +442,8 @@ class CrearPedido
         '', 3, 0,
         '1800-01-01', '1800-01-01', (SELECT ID_DIRECCION_ENTREGA FROM DIRECCION_ENTREGA WHERE COD_CLIENTE = ?),
         0, '1800-01-01', 0, 0,
-        (SELECT LEFT((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 2)+SUBSTRING((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 4, 2)+RIGHT((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 2))
+        (SELECT LEFT((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 2)+SUBSTRING((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 4, 2)+RIGHT((CAST((CONVERT(TIME, GETDATE()  )) AS VARCHAR(8))), 2)),
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
         )
         ";
 
@@ -434,6 +452,11 @@ class CrearPedido
             $fecha, 'PEDIDO ' . $tipo, $codClient, $numPed, $codClient,
             self::TALON_DETALLE, $codClient,
         ]);
+
+        $idGva21 = $this->obtenerIdGva21($numPed);
+        if ($idGva21 === null) {
+            return $this->error('encabezado', 'No se pudo obtener ID_GVA21 del pedido insertado.');
+        }
 
         $nroRenglon = 1;
         foreach ($articulos as $item) {
@@ -456,14 +479,14 @@ class CrearPedido
             );
 
             if (!$esKit) {
-                $this->insertarRenglonSimple($codClient, $codArticu, $cantArt, $numPed, $nroRenglon);
+                $this->insertarRenglonSimple($codClient, $codArticu, $cantArt, $numPed, $nroRenglon, $idGva21);
                 $nroRenglon++;
                 if ($comprometerStock && function_exists('comp_stock')) {
                     comp_stock($cantArt, $codArticu, $depo);
                 }
             } else {
                 $nroRenglon = $this->insertarRenglonKit(
-                    $codClient, $codArticu, $cantArt, $numPed, $nroRenglon, $depo, $comprometerStock, $rubro
+                    $codClient, $codArticu, $cantArt, $numPed, $nroRenglon, $depo, $comprometerStock, $rubro, $idGva21
                 );
             }
         }
@@ -481,7 +504,8 @@ class CrearPedido
         string $codArticu,
         int $cantArt,
         string $numPed,
-        int $nroRenglon
+        int $nroRenglon,
+        int $idGva21
     ): void {
         $sql = "
         INSERT INTO GVA03
@@ -489,19 +513,22 @@ class CrearPedido
         CAN_EQUI_V, CANT_A_DES, CANT_A_FAC, CANT_PEDID, CANT_PEN_D, CANT_PEN_F, COD_ARTICU, DESCUENTO, N_RENGLON, NRO_PEDIDO, PEN_REM_FC, PEN_FAC_RE,
         PRECIO, TALON_PED,
         CANT_A_DES_2, CANT_A_FAC_2, CANT_PEDID_2, CANT_PEN_D_2, CANT_PEN_F_2, PEN_REM_FC_2, ID_MEDIDA_VENTAS, ID_MEDIDA_STOCK, UNIDAD_MEDIDA_SELECCIONADA, RENGL_PADR,
-        PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM
+        PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM,
+        IMPORTE_CON_IMPUESTOS, IMPORTE_PROPORCIONADO, IMPORTE_SIN_IMPUESTOS, NRO_ORDEN, ID_GVA21
         )
         VALUES
         (
         1, ?, ?, ?, ?, ?, ?, 0, ?, ' ' + ?, 0, 0,
         (SELECT PRECIO FROM GVA17 WHERE COD_ARTICU = ? AND NRO_DE_LIS = (SELECT NRO_LISTA FROM GVA14 WHERE COD_CLIENT = ?)), ?,
         0, 0, 0, 0, 0, 0, 7, 7, 'V', 0,
-        0, 0, 0, 0, 0, 0, 0
+        0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, ?
         )
         ";
         Sqlsrv::ejecutar($this->cid, $sql, [
             $cantArt, $cantArt, $cantArt, $cantArt, $cantArt,
             $codArticu, $nroRenglon, $numPed, $codArticu, $codClient, self::TALON_DETALLE,
+            $idGva21,
         ]);
     }
 
@@ -513,7 +540,8 @@ class CrearPedido
         int $nroRenglon,
         string $depo,
         bool $comprometerStock,
-        string $rubro
+        string $rubro,
+        int $idGva21
     ): int {
         if ($rubro !== 'PACKAGING' && $cantArt > 15) {
             $cantArt = 15;
@@ -525,19 +553,22 @@ class CrearPedido
         CAN_EQUI_V, CANT_A_DES, CANT_A_FAC, CANT_PEDID, CANT_PEN_D, CANT_PEN_F, COD_ARTICU, DESCUENTO, N_RENGLON, NRO_PEDIDO, PEN_REM_FC, PEN_FAC_RE,
         PRECIO, TALON_PED,
         CANT_A_DES_2, CANT_A_FAC_2, CANT_PEDID_2, CANT_PEN_D_2, CANT_PEN_F_2, PEN_REM_FC_2, ID_MEDIDA_VENTAS, ID_MEDIDA_STOCK, UNIDAD_MEDIDA_SELECCIONADA, RENGL_PADR,
-        PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM, COD_ARTICU_KIT
+        PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM, COD_ARTICU_KIT,
+        IMPORTE_CON_IMPUESTOS, IMPORTE_PROPORCIONADO, IMPORTE_SIN_IMPUESTOS, NRO_ORDEN, ID_GVA21
         )
         VALUES
         (
         1, ?, ?, ?, ?, ?, ?, 0, ?, ' ' + ?, 0, 0,
         (SELECT PRECIO FROM GVA17 WHERE COD_ARTICU = ? AND NRO_DE_LIS = (SELECT NRO_LISTA FROM GVA14 WHERE COD_CLIENT = ?)), ?,
-        0, 0, 0, 0, 0, 0, 7, 7, 'P', 0,
-        1, 0, 1, 0, 0, 0, 0, ?
+        0, 0, 0, 0, 0, 0, 7, 7, 'V', 0,
+        1, 0, 1, 0, 0, 0, 0, ?,
+        0, 0, 0, 0, ?
         )
         ";
         Sqlsrv::ejecutar($this->cid, $sqlKitPadre, [
             $cantArt, $cantArt, $cantArt, $cantArt, $cantArt,
             $codArticuKit, $nroRenglon, $numPed, $codArticuKit, $codClient, self::TALON_DETALLE, $codArticuKit,
+            $idGva21,
         ]);
 
         $ultRenglon = $nroRenglon;
@@ -560,19 +591,22 @@ class CrearPedido
             CAN_EQUI_V, CANT_A_DES, CANT_A_FAC, CANT_PEDID, CANT_PEN_D, CANT_PEN_F, COD_ARTICU, DESCUENTO, N_RENGLON, NRO_PEDIDO, PEN_REM_FC, PEN_FAC_RE,
             PRECIO, TALON_PED,
             CANT_A_DES_2, CANT_A_FAC_2, CANT_PEDID_2, CANT_PEN_D_2, CANT_PEN_F_2, PEN_REM_FC_2, ID_MEDIDA_VENTAS, ID_MEDIDA_STOCK, UNIDAD_MEDIDA_SELECCIONADA, RENGL_PADR,
-            PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM, COD_ARTICU_KIT
+            PROMOCION, PRECIO_ADICIONAL_KIT, KIT_COMPLETO, INSUMO_KIT_SEPARADO, PRECIO_LISTA, PRECIO_BONIF, DESCUENTO_PARAM, COD_ARTICU_KIT,
+            IMPORTE_CON_IMPUESTOS, IMPORTE_PROPORCIONADO, IMPORTE_SIN_IMPUESTOS, NRO_ORDEN, ID_GVA21
             )
             VALUES
             (
             1, ?, ?, ?, ?, ?, ?, 0, ?, ' ' + ?, 0, 0,
             (SELECT PRECIO FROM GVA17 WHERE COD_ARTICU = ? AND NRO_DE_LIS = (SELECT NRO_LISTA FROM GVA14 WHERE COD_CLIENT = ?)), ?,
             0, 0, 0, 0, 0, 0, 7, 7, 'P', ?,
-            0, 0, 1, 0, 0, 0, 0, ?
+            0, 0, 1, 0, 0, 0, 0, ?,
+            0, 0, 0, 0, ?
             )
             ";
             Sqlsrv::ejecutar($this->cid, $sqlInsumo, [
                 $cantArt2, $cantArt2, $cantArt2, $cantArt2, $cantArt2,
                 $codInsumo, $nroRenglon, $numPed, $codInsumo, $codClient, self::TALON_DETALLE, $ultRenglon, $codArticuKit,
+                $idGva21,
             ]);
             $nroRenglon++;
 
@@ -595,6 +629,20 @@ class CrearPedido
             $cantArt = (int) $stock;
         }
         return max(0, $cantArt);
+    }
+
+    private function obtenerIdGva21(string $numPed): ?int
+    {
+        $stmt = Sqlsrv::ejecutar(
+            $this->cid,
+            'SELECT ID_GVA21 FROM GVA21 WHERE NRO_PEDIDO = ? AND TALON_PED = ?',
+            [' ' . $numPed, self::TALON_DETALLE]
+        );
+        $row = Sqlsrv::fetch($stmt);
+        if ($row === false || !isset($row['ID_GVA21'])) {
+            return null;
+        }
+        return (int) $row['ID_GVA21'];
     }
 
     /**
