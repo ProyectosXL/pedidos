@@ -24,7 +24,7 @@ body {
     padding: 2px 4px;
 }
 .container-fluid.table-wrapper {
-    margin-top: 160px;
+    margin-top: 70px; /* fallback; ajustarMargenTabla() en main.js lo corrige con la altura real del toolbar */
     padding: 0 15px;
 }
 .table-container {
@@ -93,6 +93,41 @@ body {
     border-radius: 3px;
     font-size: 0.7em;
     font-weight: bold;
+}
+#thCodigoSort {
+    cursor: pointer;
+    user-select: none;
+}
+#thCodigoSort:hover {
+    background-color: #dde1e4;
+}
+#thCodigoSort i {
+    margin-left: 4px;
+    opacity: 0.6;
+}
+#id_tabla th.col-fija,
+#id_tabla td.col-fija {
+    position: sticky;
+    z-index: 2;
+}
+#id_tabla thead th.col-fija {
+    z-index: 150;
+    background-color: #e9ecef;
+}
+#id_tabla tbody tr:nth-of-type(odd) td.col-fija {
+    background-color: #f2f2f2;
+}
+#id_tabla tbody tr:nth-of-type(even) td.col-fija {
+    background-color: #fff;
+}
+#id_tabla tfoot td.col-fija {
+    z-index: 102;
+    background-color: #e9ecef;
+}
+.col-fija-totales {
+    position: sticky;
+    left: 0;
+    z-index: 102;
 }
 .search-box {
     position: relative;

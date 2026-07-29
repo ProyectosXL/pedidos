@@ -67,7 +67,7 @@ include_once __DIR__.'/../../class/pedido.php';
             padding: 2px 4px;
         }
         .container-fluid.table-wrapper {
-            margin-top: 160px;
+            margin-top: 70px; /* fallback; ajustarMargenTabla() en main.js lo corrige con la altura real del toolbar */
             padding: 0 15px;
         }
         .table-container {
@@ -125,6 +125,45 @@ include_once __DIR__.'/../../class/pedido.php';
             border-radius: 3px;
             font-size: 0.7em;
             font-weight: bold;
+        }
+        #thCodigoSort {
+            cursor: pointer;
+            user-select: none;
+        }
+        #thCodigoSort:hover {
+            background-color: #dde1e4;
+        }
+        #thCodigoSort i {
+            margin-left: 4px;
+            opacity: 0.6;
+        }
+        #id_tabla th.col-fija,
+        #id_tabla td.col-fija {
+            position: sticky;
+            z-index: 2;
+        }
+        #id_tabla thead th.col-fija {
+            z-index: 150;
+            background-color: #e9ecef;
+        }
+        #id_tabla tbody tr:nth-of-type(odd) td.col-fija {
+            background-color: #f2f2f2;
+        }
+        #id_tabla tbody tr:nth-of-type(even) td.col-fija {
+            background-color: #fff;
+        }
+        #id_tabla tfoot td.col-fija {
+            z-index: 102;
+            background-color: #e9ecef;
+        }
+        .col-fija-totales {
+            position: sticky;
+            left: 0;
+            z-index: 102;
+        }
+        #id_tabla thead th.sucursal-header {
+            text-align: center;
+            white-space: normal;
         }
         .search-box {
             position: relative;
@@ -255,22 +294,30 @@ include_once __DIR__.'/../../class/pedido.php';
                 <div class="col-auto">
                     <div class="input-group input-group-sm py-0" style="max-width: 100px;">
                         <span class="input-group-text py-1 px-1">Unid.</span>
-                        <input type="text" name="total_todo" id="total" class="form-control form-control-sm py-1 px-1" value="0">
+                        <input type="text" name="total_todo" id="total" class="form-control form-control-sm py-1 px-1" value="0" readonly>
                     </div>
                 </div>
                 <div class="col-auto">
-                    <div class="input-group input-group-sm py-0" style="max-width: 110px;">
+                    <div class="input-group input-group-sm py-0" style="max-width: 180px;">
                         <span class="input-group-text py-1 px-1">Importe</span>
-                        <input type="text" name="total_precio" id="totalPrecio" class="form-control form-control-sm py-1 px-1" value="0" onchange="verificarCredito()">
+                        <input type="text" name="total_precio" id="totalPrecio" class="form-control form-control-sm py-1 px-1" value="0" onchange="verificarCredito()" readonly>
                     </div>
                     <div id="creditAlertContainer" style="position:absolute;z-index:1000;width:22%;"></div>
                 </div>
                 <div class="col-auto">
                     <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-secondary py-1" id="btnGrabarPedido"><i class="fas fa-save"></i> Grabar</button>
-                        <button type="button" class="btn btn-secondary py-1" id="btnCargarPedido"><i class="fas fa-upload"></i> Cargar</button>
+                        <button type="button" class="btn btn-outline-secondary py-1 dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            <i class="fas fa-thumbtack"></i> Fijar columnas
+                        </button>
+                        <ul class="dropdown-menu p-2" id="menuColumnasFijas">
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="foto"> FOTO</label></li>
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="codigo"> CODIGO</label></li>
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="descripcion"> DESCRIPCION</label></li>
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="rubro"> RUBRO</label></li>
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="stockcc"> STOCK CC</label></li>
+                            <li><label class="dropdown-item mb-0"><input type="checkbox" class="chk-col-fija form-check-input me-1" value="precio"> PRECIO</label></li>
+                        </ul>
                         <button class="btn btn-success py-1" id="btnExport"><i class="fas fa-file-excel"></i> Exportar</button>
-                        <button type="button" id="btnRestaurarBorrador" class="btn btn-info btn-sm py-1" title="Restaurar último pedido guardado"><i class="fas fa-history"></i> Restaurar</button>
                         <button type="button" id="btnEnviar" class="btn btn-primary btn-sm py-1"><i class="fas fa-paper-plane"></i> Enviar</button>
                         <span id="sinConexion" class="badge bg-danger align-middle ms-1" style="display: none;">SIN CONEXIÓN</span>
                     </div>
@@ -295,36 +342,38 @@ include_once __DIR__.'/../../class/pedido.php';
             <table id="id_tabla" class="table table-striped table-hover">
                 <thead class="table-fixed-header">
                     <tr>
-                        <th>FOTO</th>
-                        <th>CODIGO</th>
+                        <th data-col="foto">FOTO</th>
+                        <th id="thCodigoSort" data-col="codigo" class="sortable-col">CODIGO <i class="fas fa-sort" id="iconSortCodigo"></i></th>
                         <th></th>
-                        <th>DESCRIPCION</th>
-                        <th>RUBRO</th>
+                        <th data-col="descripcion">DESCRIPCION</th>
+                        <th data-col="rubro">RUBRO</th>
                         <th></th>
-                        <th data-bs-toggle="tooltip" data-bs-placement="top" title="Stock disponible en Casa Central">STOCK CC</th>
+                        <th data-col="stockcc">STOCK CC</th>
                         <th></th>
+                        <th data-col="precio">PRECIO</th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th colspan="3"><?= str_replace(' ', '<br>', $info['nombre']) ?></th>
+                            <th colspan="3" class="sucursal-header" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['nombreCompleto']) ?>"><?= htmlspecialchars($info['codClient']) ?></th>
                         <?php endforeach; ?>
                     </tr>
                     <tr>
+                        <th data-col="foto"></th>
+                        <th data-col="codigo"></th>
                         <th></th>
+                        <th data-col="descripcion"></th>
+                        <th data-col="rubro"></th>
                         <th></th>
+                        <th data-col="stockcc"></th>
                         <th></th>
-                        <th></th>
-                        <th></th>
-                        <th></th>
-                        <th></th>
-                        <th></th>
+                        <th data-col="precio"></th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Stock en <?= htmlspecialchars($info['nombreCompleto']) ?>">
+                            <th>
                                 <i class="fas fa-boxes"></i> Stock
                             </th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Vendido últimos 30 días en <?= htmlspecialchars($info['nombreCompleto']) ?>">
+                            <th>
                                 <i class="fas fa-chart-line"></i> Vendido
                             </th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Cantidad a pedir para <?= htmlspecialchars($info['nombreCompleto']) ?>">
-                                <i class="fas fa-shopping-cart"></i> Pedido
+                            <th>
+                                <i class="fas fa-shopping-cart"></i>
                             </th>
                         <?php endforeach; ?>
                     </tr>
@@ -336,29 +385,30 @@ include_once __DIR__.'/../../class/pedido.php';
                         $isSale = (substr($v['DESCRIPCIO'], -11) == '-- SALE! --');
                         $description = $isSale ? substr($v['DESCRIPCIO'], 0, -11) : $v['DESCRIPCIO'];
                     ?>
-                        <tr <?= $isSale ? 'style="font-weight:bold;color:#FE2E2E"' : '' ?>>
-                            <td>
+                        <tr>
+                            <td data-col="foto">
                                 <?php if ($imageUrl): ?>
                                     <img src="<?= $imageUrl ?>" alt="Sin imagen" height="40" width="40" class="product-image" data-bs-toggle="modal" data-bs-target="#imageModal<?= $imageName ?>">
                                 <?php else: ?>
                                     <span>Sin</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?= $v['COD_ARTICU'] ?></td>
+                            <td data-col="codigo"><?= $v['COD_ARTICU'] ?></td>
                             <td><input name="codArt[]" value="<?= $v['COD_ARTICU'] ?>" type="hidden"></td>
-                            <td>
+                            <td data-col="descripcion">
                                 <?= $description ?>
                                 <?= $isSale ? '<span class="sale-badge">SALE</span>' : '' ?>
                             </td>
-                            <td><?= $v['RUBRO'] ?></td>
+                            <td data-col="rubro"><?= $v['RUBRO'] ?></td>
                             <td><input name="rubro[]" value="<?= $v['RUBRO'] ?>" type="hidden"></td>
-                            <td id="stock"><?= (int)($v['CANT_STOCK']) ?></td>
+                            <td id="stock" data-col="stockcc"><?= (int)($v['CANT_STOCK']) ?></td>
                             <td><input name="stock[]" value="<?= $v['CANT_STOCK'] ?>" type="hidden"></td>
-                            
+                            <td id="precio" data-col="precio" data-precio-raw="<?= (int)($v['PRECIO'] ?? 0) ?>">$ <?= number_format((int)($v['PRECIO'] ?? 0), 0, ',', '.') ?></td>
+
                             <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                                <td class="stock-column" data-bs-toggle="tooltip" data-bs-placement="top" title="Stock en <?= htmlspecialchars($info['nombreCompleto']) ?>"><?= (int)($v[$suc . '_STOCK'] ?? 0) ?></td>
-                                <td data-bs-toggle="tooltip" data-bs-placement="top" title="Unidades vendidas últimos 30 días"><?= (int)($v[$suc . '_VENDIDO'] ?? 0) ?></td>
-                                <td><input type="number" name="cantPed_<?= $suc ?>[]" id="cantPed" value="0" min="0" step="1" pattern="\d+" onkeyup="total();precioTotal()" onblur="validarInputCantidad(this)" size="1" tabindex="1" class="form-control form-control-sm pedido-input <?= $info['codClient'] ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="Cantidad a pedir para <?= htmlspecialchars($info['nombreCompleto']) ?>"></td>
+                                <td class="stock-column"><?= (int)($v[$suc . '_STOCK'] ?? 0) ?></td>
+                                <td><?= (int)($v[$suc . '_VENDIDO'] ?? 0) ?></td>
+                                <td><input type="text" inputmode="numeric" name="cantPed_<?= $suc ?>[]" id="cantPed" value="0" onkeyup="total();precioTotal()" onblur="validarInputCantidad(this)" size="1" tabindex="1" class="form-control form-control-sm pedido-input <?= $info['codClient'] ?>"></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php } ?>
@@ -367,6 +417,7 @@ include_once __DIR__.'/../../class/pedido.php';
                     <tr>
                         <td colspan="7"><strong>Totales</strong></td>
                         <td></td>
+                        <td id="totalPrecioFooter" data-col="precio">0</td>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
                             <td></td>
                             <td></td>
@@ -483,68 +534,6 @@ include_once __DIR__.'/../../class/pedido.php';
                 } else {
                     formEl.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                 }
-            });
-
-            // Botón Restaurar Borrador
-            $('#btnRestaurarBorrador').on('click', function() {
-                let borrador = localStorage.getItem('pedido_borrador_' + document.title);
-                if (borrador) {
-                    Swal.fire({
-                        icon: 'question',
-                        title: '¿Restaurar borrador?',
-                        html: '<p>Se restaurará el último pedido guardado.</p><p>¿Está seguro?</p>',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, restaurar',
-                        cancelButtonText: 'Cancelar',
-                        confirmButtonColor: '#3085d6'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            if (typeof restaurarBorrador === 'function') {
-                                if (restaurarBorrador()) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Borrador restaurado',
-                                        text: 'El pedido ha sido restaurado correctamente',
-                                        timer: 3000,
-                                        showConfirmButton: false
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: 'No se pudo restaurar',
-                                        text: 'No se encontraron datos para restaurar'
-                                    });
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'No hay borrador',
-                        text: 'No se encontró ningún pedido guardado anteriormente'
-                    });
-                }
-            });
-
-            // Verificar si hay borrador disponible al cargar
-            setTimeout(function() {
-                let borrador = localStorage.getItem('pedido_borrador_' + document.title);
-                if (borrador) {
-                    $('#btnRestaurarBorrador').addClass('pulse-animation');
-                    $('#btnRestaurarBorrador').attr('title', 'Hay un pedido guardado disponible para restaurar');
-                }
-            }, 1000);
-
-            // Botones grabar y cargar (placeholder)
-            $('#btnGrabarPedido').on('click', function() {
-                // Implementar lógica de grabado
-                Swal.fire('Info', 'Función de grabado pendiente de implementar', 'info');
-            });
-
-            $('#btnCargarPedido').on('click', function() {
-                // Implementar lógica de carga
-                Swal.fire('Info', 'Función de carga pendiente de implementar', 'info');
             });
 
             if (document.querySelector("#pedidosCount") && document.querySelector("#pedidosCount").textContent == 0) {

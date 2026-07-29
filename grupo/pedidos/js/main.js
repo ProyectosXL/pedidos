@@ -107,12 +107,17 @@ function total() {
   if (skuEl) skuEl.value = skuCount;
 }
 
+function formatearMoneda(valor) {
+  var n = Math.round(Number(valor) || 0);
+  return '$ ' + n.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+}
+
 function precioTotal() {
   var precioTodos = 0;
   var filas = document.querySelectorAll("#id_tabla tbody tr");
   for (var r = 0; r < filas.length; r++) {
     var precioCell = filas[r].querySelector("#precio");
-    var precio = parseInt(0 + (precioCell ? precioCell.textContent : 0), 10) || 0;
+    var precio = parseInt(0 + (precioCell ? precioCell.dataset.precioRaw : 0), 10) || 0;
     var rowInputs = filas[r].querySelectorAll("input[name^='cantPed_']");
     var rowSum = 0;
     for (var j = 0; j < rowInputs.length; j++) {
@@ -121,9 +126,9 @@ function precioTotal() {
     precioTodos += precio * rowSum;
   }
   var totalPrecioEl = document.getElementById("totalPrecio");
-  if (totalPrecioEl) totalPrecioEl.value = precioTodos;
+  if (totalPrecioEl) totalPrecioEl.value = formatearMoneda(precioTodos);
   var totalPrecioFooter = document.getElementById("totalPrecioFooter");
-  if (totalPrecioFooter) totalPrecioFooter.textContent = precioTodos;
+  if (totalPrecioFooter) totalPrecioFooter.textContent = formatearMoneda(precioTodos);
 }
 
 function pulsar(e) {
@@ -293,7 +298,7 @@ function restaurarBorrador() {
                 let codigo = codigoInput ? codigoInput.value.trim() : '';
                 if (codigo) {
                     let totalFila = 0;
-                    fila.querySelectorAll("input[type=number][name^='cantPed_']").forEach(el => {
+                    fila.querySelectorAll("input[name^='cantPed_']").forEach(el => {
                         totalFila += parseInt(el.value || 0);
                     });
                     artCargados.push({ codigo: codigo, cantidad: totalFila });
@@ -387,7 +392,7 @@ function resaltarArticulosProblema(codigos) {
 /************************************************************************************************************************************************************ */
 
 //guardo el array con todos los input number (cantidad de pedido), del cual se escuchará el evento change para detectar la fila donde se está cambiando el valor
-let inputCantidad = document.querySelectorAll("input[type=number][name^='cantPed_']");
+let inputCantidad = document.querySelectorAll("input[name^='cantPed_']");
 
 inputCantidad.forEach((el) => {
     valoresInicialesSesion.set(el, normalizarValorInput(el.value));
@@ -418,7 +423,7 @@ inputCantidad.forEach((el) => {
 });
 
 function esInputPedido(elemento) {
-    return !!(elemento && elemento.matches && elemento.matches("input[type=number][name^='cantPed_']"));
+    return !!(elemento && elemento.matches && elemento.matches("input[name^='cantPed_']"));
 }
 
 function procesarEdicionPedido(input) {
@@ -484,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tieneDatos = true;
                 }
             });
-            
+
             // Solo restaurar si no hay datos actuales
             if (!tieneDatos) {
                 if (restaurarBorrador()) {
@@ -506,6 +511,141 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /************************************************************************************************************************************************************ */
 
+/**
+ * Orden por columna CODIGO: reordena los <tr> existentes (sin clonarlos) para
+ * conservar los valores ya cargados y los listeners atados a cada input.
+ */
+let sortCodigoDir = null; // null | 'asc' | 'desc'
+
+function actualizarIconoSortCodigo() {
+    const icon = document.getElementById('iconSortCodigo');
+    if (!icon) return;
+    icon.className = sortCodigoDir === 'asc' ? 'fas fa-sort-up'
+                    : sortCodigoDir === 'desc' ? 'fas fa-sort-down'
+                    : 'fas fa-sort';
+}
+
+function ordenarPorCodigo() {
+    const tbody = document.querySelector('#id_tabla tbody');
+    if (!tbody) return;
+    sortCodigoDir = sortCodigoDir === 'asc' ? 'desc' : 'asc';
+    const filas = Array.from(tbody.querySelectorAll('tr'));
+    filas.sort(function(a, b) {
+        const ca = (a.querySelector('input[name="codArt[]"]') || {}).value || '';
+        const cb = (b.querySelector('input[name="codArt[]"]') || {}).value || '';
+        const cmp = ca.trim().localeCompare(cb.trim(), undefined, { numeric: true, sensitivity: 'base' });
+        return sortCodigoDir === 'asc' ? cmp : -cmp;
+    });
+    filas.forEach(function(fila) { tbody.appendChild(fila); });
+    actualizarIconoSortCodigo();
+}
+
+/**
+ * Fijado de columnas: FOTO, CODIGO, DESCRIPCION, RUBRO, STOCK CC, PRECIO.
+ * Se identifican mediante el atributo data-col (compartido por la celda visible
+ * y la celda oculta vecina) y se persiste la selección en localStorage por página.
+ */
+const ORDEN_COLUMNAS_FIJABLES = ['foto', 'codigo', 'descripcion', 'rubro', 'stockcc', 'precio'];
+
+function claveColumnasFijas() {
+    return 'columnasFijas_' + documentTitle;
+}
+
+function leerColumnasFijasGuardadas() {
+    try {
+        return JSON.parse(localStorage.getItem(claveColumnasFijas())) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function aplicarColumnasFijas() {
+    const seleccionadas = Array.from(document.querySelectorAll('.chk-col-fija:checked')).map(function(el) { return el.value; });
+    let offset = 0;
+
+    ORDEN_COLUMNAS_FIJABLES.forEach(function(col) {
+        const activa = seleccionadas.indexOf(col) !== -1;
+        const celdas = document.querySelectorAll('[data-col="' + col + '"]');
+        celdas.forEach(function(celda) {
+            if (activa) {
+                celda.classList.add('col-fija');
+                celda.style.left = offset + 'px';
+            } else {
+                celda.classList.remove('col-fija');
+                celda.style.left = '';
+            }
+        });
+        if (activa) {
+            const referencia = document.querySelector('thead [data-col="' + col + '"]');
+            offset += referencia ? referencia.offsetWidth : 0;
+        }
+    });
+
+    const hayAlguna = seleccionadas.length > 0;
+    const totalesCell = document.querySelector('#id_tabla tfoot td[colspan="7"]');
+    if (totalesCell) {
+        if (hayAlguna) {
+            totalesCell.classList.add('col-fija-totales');
+            totalesCell.style.left = '0px';
+        } else {
+            totalesCell.classList.remove('col-fija-totales');
+            totalesCell.style.left = '';
+        }
+    }
+
+    localStorage.setItem(claveColumnasFijas(), JSON.stringify(seleccionadas));
+}
+
+function restaurarColumnasFijasGuardadas() {
+    const guardadas = leerColumnasFijasGuardadas();
+    document.querySelectorAll('.chk-col-fija').forEach(function(chk) {
+        chk.checked = guardadas.indexOf(chk.value) !== -1;
+    });
+    aplicarColumnasFijas();
+}
+
+/**
+ * Corrige el hueco entre la barra de herramientas fija y la tabla, midiendo la
+ * altura real del toolbar en vez de depender de un margen fijo en el CSS.
+ */
+function ajustarMargenTabla() {
+    const header = document.querySelector('.fixed-header');
+    const wrapper = document.querySelector('.table-wrapper');
+    if (header && wrapper) {
+        wrapper.style.marginTop = (header.offsetHeight + 10) + 'px';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const thCodigo = document.getElementById('thCodigoSort');
+    if (thCodigo) thCodigo.addEventListener('click', ordenarPorCodigo);
+
+    restaurarColumnasFijasGuardadas();
+    document.querySelectorAll('.chk-col-fija').forEach(function(chk) {
+        chk.addEventListener('change', aplicarColumnasFijas);
+    });
+
+    ajustarMargenTabla();
+
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            aplicarColumnasFijas();
+            ajustarMargenTabla();
+        }, 200);
+    });
+});
+
+// Recalcula una vez más cuando terminan de cargar las imágenes (columna FOTO),
+// ya que su ancho real puede diferir del medido en DOMContentLoaded.
+window.addEventListener('load', function() {
+    aplicarColumnasFijas();
+    ajustarMargenTabla();
+});
+
+/************************************************************************************************************************************************************ */
+
 function verificarTotal(e) {
   //capturo el total de stocken casa central para un articulo a partir del change en un input de la fila
   let total = parseInt(
@@ -514,12 +654,12 @@ function verificarTotal(e) {
 
   //guardo el arreglo con los inputs de cantidad de la fila seleccionada
   let fila =
-    e.target.parentElement.parentElement.querySelectorAll("input[type=number][name^='cantPed_']");
+    e.target.parentElement.parentElement.querySelectorAll("input[name^='cantPed_']");
 
   //guardo el precio del articulo de la fila en cuestión
   let precioArticulo = parseInt(
-    e.target.parentElement.parentElement.querySelector("#precio").textContent
-  );
+    e.target.parentElement.parentElement.querySelector("#precio").dataset.precioRaw
+  ) || 0;
 
   let totalFila = 0;
 
@@ -602,7 +742,7 @@ function iniciarEnvioPedido(e) {
   
   // Validar todos los inputs antes de enviar
   let inputsInvalidos = [];
-  let todosLosInputs = document.querySelectorAll("input[type=number][name^='cantPed_']");
+  let todosLosInputs = document.querySelectorAll("input[name^='cantPed_']");
   
   todosLosInputs.forEach(function(input) {
     if (!validarInputCantidad(input)) {
@@ -632,7 +772,7 @@ function iniciarEnvioPedido(e) {
     let codigo = codigoInput ? codigoInput.value.trim() : '';
     if (!codigo) return;
     let totalFila = 0;
-    fila.querySelectorAll("input[type=number][name^='cantPed_']").forEach(function (el) {
+    fila.querySelectorAll("input[name^='cantPed_']").forEach(function (el) {
       totalFila += parseInt(el.value || 0, 10) || 0;
     });
     if (totalFila > 0) {
@@ -801,7 +941,7 @@ function prepararFormularioEnvioCompacto(formulario) {
   let indice = 0;
 
   filas.forEach(function (fila) {
-    const inputsCant = fila.querySelectorAll("input[type=number][name^='cantPed_']");
+    const inputsCant = fila.querySelectorAll("input[name^='cantPed_']");
     let totalFila = 0;
     inputsCant.forEach(function (inp) {
       totalFila += parseInt(inp.value || "0", 10) || 0;
