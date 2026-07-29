@@ -432,6 +432,33 @@ function procesarEdicionPedido(input) {
     precioTotal();
 }
 
+/**
+ * Selecciona todo el contenido del input de cantidad al enfocarlo, tanto por
+ * clic del mouse como por Tab. Por defecto, el navegador solo selecciona todo
+ * al enfocar por teclado; con clic solo ubica el cursor en el punto clickeado.
+ * Para igualar ambos casos, se cancela el mouseup (que reposicionaría el
+ * cursor) únicamente cuando ese clic fue el que le dio el foco al input.
+ */
+let cantPedFocoPorClick = null;
+
+document.addEventListener('mousedown', function(e) {
+    if (!esInputPedido(e.target)) return;
+    cantPedFocoPorClick = (document.activeElement !== e.target) ? e.target : null;
+});
+
+document.addEventListener('focusin', function(e) {
+    if (!esInputPedido(e.target)) return;
+    e.target.select();
+});
+
+document.addEventListener('mouseup', function(e) {
+    if (!esInputPedido(e.target)) return;
+    if (cantPedFocoPorClick === e.target) {
+        e.preventDefault();
+    }
+    cantPedFocoPorClick = null;
+});
+
 let firmaTotales = "";
 function actualizarTotalesSiCambio() {
     const inputs = document.querySelectorAll("#id_tabla input[name^='cantPed_']");

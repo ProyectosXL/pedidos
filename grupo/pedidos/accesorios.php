@@ -117,6 +117,10 @@ include_once __DIR__.'/../../class/pedido.php';
         #id_tabla tfoot td {
             background-color: #e9ecef;
             font-weight: bold;
+            position: sticky;
+            bottom: 0;
+            z-index: 101;
+            border-top: 2px solid #adb5bd;
         }
         .sale-badge {
             background-color: #dc3545;
@@ -381,7 +385,7 @@ include_once __DIR__.'/../../class/pedido.php';
                 <tbody id="tabla">
                     <?php foreach ($pedidos as $v) {
                         $imageName = substr($v['COD_ARTICU'], 0, 13);
-                        $imageUrl = file_exists("../../Imagenes/".$imageName.".jpg") ? "../../Imagenes/".$imageName.".jpg" : "";
+                        $imageUrl = file_exists("../../../Imagenes/".$imageName.".jpg") ? "../../../Imagenes/".$imageName.".jpg" : "";
                         $isSale = (substr($v['DESCRIPCIO'], -11) == '-- SALE! --');
                         $description = $isSale ? substr($v['DESCRIPCIO'], 0, -11) : $v['DESCRIPCIO'];
                     ?>
@@ -408,7 +412,7 @@ include_once __DIR__.'/../../class/pedido.php';
                             <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
                                 <td class="stock-column"><?= (int)($v[$suc . '_STOCK'] ?? 0) ?></td>
                                 <td><?= (int)($v[$suc . '_VENDIDO'] ?? 0) ?></td>
-                                <td><input type="text" inputmode="numeric" name="cantPed_<?= $suc ?>[]" id="cantPed" value="0" onkeyup="total();precioTotal()" onblur="validarInputCantidad(this)" size="1" tabindex="1" class="form-control form-control-sm pedido-input <?= $info['codClient'] ?>"></td>
+                                <td><input type="text" inputmode="numeric" name="cantPed_<?= $suc ?>[]" value="0" onkeyup="total();precioTotal()" onblur="validarInputCantidad(this)" size="1" tabindex="1" class="form-control form-control-sm pedido-input <?= $info['codClient'] ?>"></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php } ?>
@@ -432,7 +436,7 @@ include_once __DIR__.'/../../class/pedido.php';
 
     <?php foreach ($pedidos as $v) {
         $imageName = substr($v['COD_ARTICU'], 0, 13);
-        $imageUrl = file_exists("../../Imagenes/".$imageName.".jpg") ? "../../Imagenes/".$imageName.".jpg" : "";
+        $imageUrl = file_exists("../../../Imagenes/".$imageName.".jpg") ? "../../../Imagenes/".$imageName.".jpg" : "";
     ?>
         <div class="modal fade" id="imageModal<?= $imageName ?>" tabindex="-1" aria-labelledby="imageModalLabel<?= $imageName ?>" aria-hidden="true">
             <div class="modal-dialog modal-lg">
