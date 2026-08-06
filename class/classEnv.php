@@ -10,21 +10,21 @@ class DotEnv
      */
     protected $path;
 
+    /**
+     * Ruta del archivo .env, siempre en la carpeta raíz un nivel por encima
+     * del repositorio (fuera del repo a propósito, para que no quede
+     * versionado). classEnv.php vive en <repo>/class/, por lo que
+     * __DIR__ . '/../../.env' resuelve a <repo>/../.env.
+     *
+     * @return string Ruta absoluta si el archivo existe; si no, la ruta
+     *                 construida (sin resolver), útil como diagnóstico.
+     */
     public static function resolveEnvPath()
     {
-        $local = __DIR__ . '/../.env';
-        if (file_exists($local)) {
-            return $local;
-        }
+        $path = __DIR__ . '/../../.env';
+        $real = realpath($path);
 
-        if (!empty($_SERVER['DOCUMENT_ROOT'])) {
-            $sistemas = $_SERVER['DOCUMENT_ROOT'] . '/sistemas/.env';
-            if (file_exists($sistemas)) {
-                return $sistemas;
-            }
-        }
-
-        return $local;
+        return $real !== false ? $real : $path;
     }
 
     public function __construct(?string $path = null)
@@ -34,7 +34,10 @@ class DotEnv
         }
 
         if(!file_exists($path)) {
-            throw new \InvalidArgumentException(sprintf('%s does not exist', $path));
+            throw new \InvalidArgumentException(sprintf(
+                'No se encontró el archivo de configuración de entorno (.env) en "%s". Debe estar en la carpeta raíz, un nivel por encima del repositorio.',
+                $path
+            ));
         }
         $this->path = $path;
     }
@@ -42,7 +45,10 @@ class DotEnv
     private function load() :void
     {
         if (!is_readable($this->path)) {
-            throw new \RuntimeException(sprintf('%s file is not readable', $this->path));
+            throw new \RuntimeException(sprintf(
+                'El archivo de configuración de entorno (.env) en "%s" existe pero no es legible. Revisar los permisos del archivo.',
+                $this->path
+            ));
         }
 
         $lines = file($this->path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
