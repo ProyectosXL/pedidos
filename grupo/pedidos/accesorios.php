@@ -39,209 +39,8 @@ include_once __DIR__.'/../../class/pedido.php';
     <link rel="shortcut icon" href="../../images/logo.jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/preloader.css">
-    <style>
-        body {
-            padding-top: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-        .fixed-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background-color: #f8f9fa;
-            padding: 4px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,.1);
-            width: 100%;
-        }
-        .fixed-header .container-fluid {
-            padding: 0 8px;
-        }
-        .fixed-header .row {
-            margin: 0 -4px;
-        }
-        .fixed-header .row > [class*="col-"] {
-            padding: 2px 4px;
-        }
-        .container-fluid.table-wrapper {
-            margin-top: 70px; /* fallback; ajustarMargenTabla() en main.js lo corrige con la altura real del toolbar */
-            padding: 0 15px;
-        }
-        .table-container {
-            overflow-x: auto;
-            overflow-y: auto;
-            max-height: calc(100vh - 180px);
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            width: 100%;
-            -webkit-overflow-scrolling: touch;
-        }
-        #id_tabla {
-            font-size: 0.8rem;
-            width: max-content;
-            min-width: 100%;
-            margin-bottom: 0;
-            table-layout: auto;
-        }
-        #id_tabla th, #id_tabla td {
-            white-space: nowrap;
-            padding: 0.25rem 0.4rem;
-            font-size: 0.8rem;
-        }
-        #id_tabla thead th {
-            padding: 0.2rem 0.4rem;
-            font-size: 0.75rem;
-        }
-        .table-fixed-header {
-            position: sticky;
-            top: 0;
-            background-color: #e9ecef;
-            z-index: 10;
-        }
-        #id_tabla thead {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: #e9ecef;
-        }
-        #id_tabla thead th {
-            background-color: #e9ecef;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        #id_tabla tfoot td {
-            background-color: #e9ecef;
-            font-weight: bold;
-            position: sticky;
-            bottom: 0;
-            z-index: 101;
-            border-top: 2px solid #adb5bd;
-        }
-        .sale-badge {
-            background-color: #dc3545;
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 0.7em;
-            font-weight: bold;
-        }
-        #thCodigoSort {
-            cursor: pointer;
-            user-select: none;
-        }
-        #thCodigoSort:hover {
-            background-color: #dde1e4;
-        }
-        #thCodigoSort i {
-            margin-left: 4px;
-            opacity: 0.6;
-        }
-        #id_tabla th.col-fija,
-        #id_tabla td.col-fija {
-            position: sticky;
-            z-index: 2;
-        }
-        #id_tabla thead th.col-fija {
-            z-index: 150;
-            background-color: #e9ecef;
-        }
-        #id_tabla tbody tr:nth-of-type(odd) td.col-fija {
-            background-color: #f2f2f2;
-        }
-        #id_tabla tbody tr:nth-of-type(even) td.col-fija {
-            background-color: #fff;
-        }
-        #id_tabla tfoot td.col-fija {
-            z-index: 102;
-            background-color: #e9ecef;
-        }
-        .col-fija-totales {
-            position: sticky;
-            left: 0;
-            z-index: 102;
-        }
-        #id_tabla thead th.sucursal-header {
-            text-align: center;
-            white-space: normal;
-        }
-        .search-box {
-            position: relative;
-        }
-        .clear-search {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #6c757d;
-        }
-        .pedido-input {
-            width: 50px;
-        }
-        .page-title {
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-        .stock-column {
-            border-left: 1px solid #dee2e6;
-        }
-        .pulse-animation {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
-            }
-        }
-        tr[style*="background-color: rgb(255, 204, 204)"] {
-            animation: highlightRow 0.5s ease-in-out;
-        }
-        @keyframes highlightRow {
-            0% {
-                background-color: #fff;
-            }
-            50% {
-                background-color: #ff6b6b;
-            }
-            100% {
-                background-color: #ffcccc;
-            }
-        }
-        .product-image {
-            cursor: pointer;
-        }
-        #creditAlertContainer {
-            position: absolute;
-            z-index: 1000;
-            width: 22%;
-        }
-        #creditAlertContainer .alert {
-            margin-bottom: 0;
-            padding: 1rem;
-            font-size: 0.9rem;
-        }
-        @media (max-width: 768px) {
-            body {
-                height: 768px;
-                overflow-x: hidden;
-            }
-            #id_tabla {
-                font-size: 0.75rem;
-                width: 100%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="css/preloader.css?v=<?= filemtime(__DIR__ . '/css/preloader.css') ?>">
+    <link rel="stylesheet" href="css/pedidos.css?v=<?= filemtime(__DIR__ . '/css/pedidos.css') ?>">
 </head>
 <body>
     <div id="aguarde" style="display: none;">
@@ -310,6 +109,9 @@ include_once __DIR__.'/../../class/pedido.php';
                 </div>
                 <div class="col-auto">
                     <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary py-1" id="btnOrdenarSucursales" data-bs-toggle="modal" data-bs-target="#modalOrdenSucursales">
+                            <i class="fas fa-arrow-down-short-wide"></i> Sucursales
+                        </button>
                         <button type="button" class="btn btn-outline-secondary py-1 dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                             <i class="fas fa-thumbtack"></i> Fijar columnas
                         </button>
@@ -356,7 +158,7 @@ include_once __DIR__.'/../../class/pedido.php';
                         <th></th>
                         <th data-col="precio">PRECIO</th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th colspan="3" class="sucursal-header" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['nombreCompleto']) ?>"><?= htmlspecialchars($info['codClient']) ?></th>
+                            <th colspan="3" class="sucursal-header" data-suc="<?= $suc ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['codClient'] . ' — ' . $info['nombreCompleto'] . ' (Suc. ' . $suc . ')') ?>"><?= htmlspecialchars($info['nombreCorto']) ?></th>
                         <?php endforeach; ?>
                     </tr>
                     <tr>
@@ -453,6 +255,57 @@ include_once __DIR__.'/../../class/pedido.php';
         </div>
     <?php } ?>
 
+    <div class="modal fade" id="modalOrdenSucursales" tabindex="-1" aria-labelledby="modalOrdenSucursalesLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalOrdenSucursalesLabel"><i class="fas fa-arrow-down-short-wide"></i> Orden y nombres de sucursales</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="ordsuc-ayuda">
+                        <p class="ordsuc-ayuda-linea"><i class="fas fa-grip-vertical" aria-hidden="true"></i> Arrastrá para cambiar el orden de las columnas.</p>
+                        <p class="ordsuc-ayuda-linea"><i class="fas fa-pen" aria-hidden="true"></i> Editá el nombre que se ve en el encabezado. Vacío = automático.</p>
+                    </div>
+                    <ul id="listaOrdenSucursales" class="list-group ordsuc-lista">
+                        <?php $posicion = 0; foreach ($sucursalesActivasInfo as $suc => $info):
+                            $posicion++;
+                            $tieneAlias = trim((string) $info['alias']) !== '';
+                            $estadoTexto = $tieneAlias ? 'Personalizado' : 'Automático';
+                            $detalleSucursal = $info['nombreCompleto'] . ' · ' . $info['codClient'];
+                        ?>
+                            <li class="list-group-item d-flex align-items-center ordsuc-item" data-suc="<?= $suc ?>">
+                                <i class="fas fa-grip-vertical ordsuc-handle" aria-hidden="true"></i>
+                                <span class="ordsuc-posicion"><?= $posicion ?></span>
+                                <div class="ordsuc-central">
+                                    <input type="text" class="form-control form-control-sm input-alias-sucursal ordsuc-input" maxlength="20"
+                                           value="<?= htmlspecialchars($info['alias']) ?>" placeholder="<?= htmlspecialchars($info['nombreCortoAuto']) ?>"
+                                           data-nombre-completo="<?= htmlspecialchars($info['nombreCompleto']) ?>"
+                                           aria-label="Nombre personalizado para <?= htmlspecialchars($info['nombreCompleto']) ?>, actualmente <?= strtolower($estadoTexto) ?>">
+                                    <div class="ordsuc-detalle" title="<?= htmlspecialchars($detalleSucursal) ?>"><?= htmlspecialchars($detalleSucursal) ?></div>
+                                </div>
+                                <span class="ordsuc-chip <?= $tieneAlias ? 'ordsuc-chip-personalizado' : 'ordsuc-chip-automatico' ?>"><?= $estadoTexto ?></span>
+                                <button type="button" class="btn btn-sm btn-link ordsuc-reset<?= $tieneAlias ? '' : ' ordsuc-reset-oculto' ?>" aria-label="Volver al nombre automático">
+                                    <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                                </button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <div class="ordsuc-aviso">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i> Al guardar se recarga la pantalla. Las cantidades ya cargadas se conservan.
+                    </div>
+                </div>
+                <div class="modal-footer ordsuc-footer">
+                    <button type="button" id="btnRestaurarOrdenSucursales" class="btn btn-link btn-sm ordsuc-restaurar">Restaurar todo</button>
+                    <div class="ordsuc-footer-derecha">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="btnGuardarOrdenSucursales" class="btn btn-primary">Guardar cambios</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php
     $suc = isset($_SESSION['numsuc']) ? $_SESSION['numsuc'] : '';
     $codClient = isset($_SESSION['codClient']) ? $_SESSION['codClient'] : '';
@@ -471,12 +324,12 @@ include_once __DIR__.'/../../class/pedido.php';
         let sucursalesIds = [<?= implode(',', array_map(function($s) { return "'" . $s . "'"; }, array_keys($sucursalesActivasInfo))) ?>];
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=<?= filemtime(__DIR__ . '/js/main.js') ?>"></script>
     <!-- <script src="../../pedidos/js/envio.js"></script>
     <script src="../../pedidos/js/jquery.table2excel.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         $(document).ready(function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {

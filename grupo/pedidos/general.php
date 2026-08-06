@@ -38,8 +38,8 @@ include_once __DIR__.'/../../class/pedido.php';
     <link rel="shortcut icon" href="../../images/logo.jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/preloader.css">
-    <link rel="stylesheet" href="css/general.css">
+    <link rel="stylesheet" href="css/preloader.css?v=<?= filemtime(__DIR__ . '/css/preloader.css') ?>">
+    <link rel="stylesheet" href="css/pedidos.css?v=<?= filemtime(__DIR__ . '/css/pedidos.css') ?>">
 </head>
 <body>
     <div id="aguarde" style="display: none;">
@@ -108,6 +108,9 @@ include_once __DIR__.'/../../class/pedido.php';
                 </div>
                 <div class="col-auto">
                     <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary py-1" id="btnOrdenarSucursales" data-bs-toggle="modal" data-bs-target="#modalOrdenSucursales">
+                            <i class="fas fa-arrow-down-short-wide"></i> Sucursales
+                        </button>
                         <button type="button" class="btn btn-outline-secondary py-1 dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                             <i class="fas fa-thumbtack"></i> Fijar columnas
                         </button>
@@ -154,7 +157,7 @@ include_once __DIR__.'/../../class/pedido.php';
                         <th></th>
                         <th data-col="precio">PRECIO</th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th colspan="3" class="sucursal-header" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['nombreCompleto']) ?>"><?= htmlspecialchars($info['codClient']) ?></th>
+                            <th colspan="3" class="sucursal-header" data-suc="<?= $suc ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['codClient'] . ' — ' . $info['nombreCompleto'] . ' (Suc. ' . $suc . ')') ?>"><?= htmlspecialchars($info['nombreCorto']) ?></th>
                         <?php endforeach; ?>
                     </tr>
                     <tr>
@@ -251,6 +254,57 @@ include_once __DIR__.'/../../class/pedido.php';
         </div>
     <?php } ?>
 
+    <div class="modal fade" id="modalOrdenSucursales" tabindex="-1" aria-labelledby="modalOrdenSucursalesLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalOrdenSucursalesLabel"><i class="fas fa-arrow-down-short-wide"></i> Orden y nombres de sucursales</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="ordsuc-ayuda">
+                        <p class="ordsuc-ayuda-linea"><i class="fas fa-grip-vertical" aria-hidden="true"></i> Arrastrá para cambiar el orden de las columnas.</p>
+                        <p class="ordsuc-ayuda-linea"><i class="fas fa-pen" aria-hidden="true"></i> Editá el nombre que se ve en el encabezado. Vacío = automático.</p>
+                    </div>
+                    <ul id="listaOrdenSucursales" class="list-group ordsuc-lista">
+                        <?php $posicion = 0; foreach ($sucursalesActivasInfo as $suc => $info):
+                            $posicion++;
+                            $tieneAlias = trim((string) $info['alias']) !== '';
+                            $estadoTexto = $tieneAlias ? 'Personalizado' : 'Automático';
+                            $detalleSucursal = $info['nombreCompleto'] . ' · ' . $info['codClient'];
+                        ?>
+                            <li class="list-group-item d-flex align-items-center ordsuc-item" data-suc="<?= $suc ?>">
+                                <i class="fas fa-grip-vertical ordsuc-handle" aria-hidden="true"></i>
+                                <span class="ordsuc-posicion"><?= $posicion ?></span>
+                                <div class="ordsuc-central">
+                                    <input type="text" class="form-control form-control-sm input-alias-sucursal ordsuc-input" maxlength="20"
+                                           value="<?= htmlspecialchars($info['alias']) ?>" placeholder="<?= htmlspecialchars($info['nombreCortoAuto']) ?>"
+                                           data-nombre-completo="<?= htmlspecialchars($info['nombreCompleto']) ?>"
+                                           aria-label="Nombre personalizado para <?= htmlspecialchars($info['nombreCompleto']) ?>, actualmente <?= strtolower($estadoTexto) ?>">
+                                    <div class="ordsuc-detalle" title="<?= htmlspecialchars($detalleSucursal) ?>"><?= htmlspecialchars($detalleSucursal) ?></div>
+                                </div>
+                                <span class="ordsuc-chip <?= $tieneAlias ? 'ordsuc-chip-personalizado' : 'ordsuc-chip-automatico' ?>"><?= $estadoTexto ?></span>
+                                <button type="button" class="btn btn-sm btn-link ordsuc-reset<?= $tieneAlias ? '' : ' ordsuc-reset-oculto' ?>" aria-label="Volver al nombre automático">
+                                    <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                                </button>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <div class="ordsuc-aviso">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i> Al guardar se recarga la pantalla. Las cantidades ya cargadas se conservan.
+                    </div>
+                </div>
+                <div class="modal-footer ordsuc-footer">
+                    <button type="button" id="btnRestaurarOrdenSucursales" class="btn btn-link btn-sm ordsuc-restaurar">Restaurar todo</button>
+                    <div class="ordsuc-footer-derecha">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="btnGuardarOrdenSucursales" class="btn btn-primary">Guardar cambios</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php
     $suc = isset($_SESSION['numsuc']) ? $_SESSION['numsuc'] : '';
     $codClient = isset($_SESSION['codClient']) ? $_SESSION['codClient'] : '';
@@ -269,12 +323,12 @@ include_once __DIR__.'/../../class/pedido.php';
         let sucursalesIds = [<?= implode(',', array_map(function($s) { return "'" . $s . "'"; }, array_keys($sucursalesActivasInfo))) ?>];
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/main.js?v=<?= filemtime(__DIR__ . '/js/main.js') ?>"></script>
     <!-- <script src="../../pedidos/js/envio.js"></script>
     <script src="../../pedidos/js/jquery.table2excel.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         $(document).ready(function() {
             // Función de búsqueda simple

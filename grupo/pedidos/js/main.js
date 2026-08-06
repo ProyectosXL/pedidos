@@ -1006,3 +1006,150 @@ function prepararFormularioEnvioCompacto(formulario) {
     indice++;
   });
 }
+
+/************************************************************************************************************************************************************ */
+
+/**
+ * Orden y alias configurables de sucursales: drag & drop con SortableJS sobre
+ * #listaOrdenSucursales (arrastre desde toda la fila salvo el input de alias y
+ * el botón de reset, vía 'filter' + 'preventOnFilter: false' — sin esto
+ * último Sortable haría preventDefault() sobre esos controles y el input
+ * nunca recibiría foco) y persistencia vía guardarOrdenSucursales.php.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+  var listaOrden = document.getElementById('listaOrdenSucursales');
+  if (!listaOrden) return;
+
+  function renumerarPosiciones() {
+    listaOrden.querySelectorAll('li[data-suc]').forEach(function (li, idx) {
+      var posEl = li.querySelector('.ordsuc-posicion');
+      if (posEl) posEl.textContent = String(idx + 1);
+    });
+  }
+
+  function actualizarEstadoFila(input) {
+    var li = input.closest('li[data-suc]');
+    if (!li) return;
+
+    var tieneAlias = input.value.trim() !== '';
+    var estado = tieneAlias ? 'Personalizado' : 'Automático';
+
+    var chip = li.querySelector('.ordsuc-chip');
+    if (chip) {
+      chip.textContent = estado;
+      chip.classList.toggle('ordsuc-chip-personalizado', tieneAlias);
+      chip.classList.toggle('ordsuc-chip-automatico', !tieneAlias);
+    }
+
+    var reset = li.querySelector('.ordsuc-reset');
+    if (reset) {
+      reset.classList.toggle('ordsuc-reset-oculto', !tieneAlias);
+    }
+
+    var nombreCompleto = input.dataset.nombreCompleto || '';
+    input.setAttribute('aria-label', 'Nombre personalizado para ' + nombreCompleto + ', actualmente ' + estado.toLowerCase());
+  }
+
+  // Actualiza el chip/reset en vivo mientras se escribe (delegado en la lista).
+  listaOrden.addEventListener('input', function (e) {
+    if (!e.target.classList.contains('input-alias-sucursal')) return;
+    actualizarEstadoFila(e.target);
+  });
+
+  // Reset por fila: vacía el input y recalcula el estado, sin llamar al servidor.
+  listaOrden.addEventListener('click', function (e) {
+    var btn = e.target.closest('.ordsuc-reset');
+    if (!btn) return;
+    var li = btn.closest('li[data-suc]');
+    var input = li ? li.querySelector('.input-alias-sucursal') : null;
+    if (!input) return;
+    input.value = '';
+    actualizarEstadoFila(input);
+    input.focus();
+  });
+
+  var modalOrden = document.getElementById('modalOrdenSucursales');
+  if (modalOrden) {
+    modalOrden.addEventListener('shown.bs.modal', renumerarPosiciones);
+  }
+
+  if (typeof Sortable !== 'undefined') {
+    new Sortable(listaOrden, {
+      filter: '.input-alias-sucursal, .ordsuc-reset',
+      preventOnFilter: false,
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      dragClass: 'ordsuc-arrastrando',
+      onEnd: renumerarPosiciones
+    });
+  }
+
+  function leerSucursalesConAlias() {
+    return Array.from(listaOrden.querySelectorAll('li[data-suc]')).map(function (li) {
+      var inputAlias = li.querySelector('.input-alias-sucursal');
+      return {
+        nro: parseInt(li.dataset.suc, 10),
+        alias: inputAlias ? inputAlias.value.trim() : ''
+      };
+    });
+  }
+
+  function enviarOrdenSucursales(payload, botones) {
+    botones.forEach(function (btn) { btn.disabled = true; });
+
+    fetch('guardarOrdenSucursales.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (data && data.ok) {
+          location.reload();
+        } else {
+          botones.forEach(function (btn) { btn.disabled = false; });
+          Swal.fire({
+            icon: 'error',
+            title: 'No se pudo guardar el orden',
+            text: (data && data.mensaje) ? data.mensaje : 'Intente nuevamente.'
+          });
+        }
+      })
+      .catch(function () {
+        botones.forEach(function (btn) { btn.disabled = false; });
+        Swal.fire({
+          icon: 'error',
+          title: 'No se pudo guardar el orden',
+          text: 'Ocurrió un error de conexión. Intente nuevamente.'
+        });
+      });
+  }
+
+  var btnGuardar = document.getElementById('btnGuardarOrdenSucursales');
+  var btnRestaurar = document.getElementById('btnRestaurarOrdenSucursales');
+  var botonesOrden = [btnGuardar, btnRestaurar].filter(Boolean);
+
+  if (btnGuardar) {
+    btnGuardar.addEventListener('click', function () {
+      guardarBorrador();
+      enviarOrdenSucursales({ accion: 'guardar', sucursales: leerSucursalesConAlias() }, botonesOrden);
+    });
+  }
+
+  if (btnRestaurar) {
+    btnRestaurar.addEventListener('click', function () {
+      Swal.fire({
+        icon: 'question',
+        title: '¿Restaurar valores por defecto?',
+        text: 'Se perderá el orden y los nombres personalizados guardados.',
+        showCancelButton: true,
+        confirmButtonText: 'Restaurar',
+        cancelButtonText: 'Cancelar'
+      }).then(function (result) {
+        if (!result.isConfirmed) return;
+        guardarBorrador();
+        enviarOrdenSucursales({ accion: 'restaurar' }, botonesOrden);
+      });
+    });
+  }
+});
