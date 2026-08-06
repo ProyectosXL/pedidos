@@ -25,6 +25,58 @@ class Conexion{
         $this->prefix = ($this->env == 'DEV') ? '[LAKERBIS].locales_lakers.dbo.' : '';
     }
 
+    /** @var array<int, array<string, mixed>>|null */
+    private $ultimoErrorSqlsrv = null;
+
+    /** @var array<string, mixed>|null */
+    private $ultimoIntentoConexion = null;
+
+    /**
+     * Parámetros del último intento de sqlsrv_connect (diagnóstico).
+     * @return array<string, mixed>|null
+     */
+    public function obtenerUltimoIntentoConexion() {
+        return $this->ultimoIntentoConexion;
+    }
+
+    /**
+     * Último error sqlsrv (conexión o consulta) del objeto.
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function obtenerUltimoErrorSqlsrv() {
+        return $this->ultimoErrorSqlsrv;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>>|null $errors
+     */
+    private function guardarUltimoErrorSqlsrv($errors) {
+        $this->ultimoErrorSqlsrv = is_array($errors) ? $errors : null;
+    }
+
+    /**
+     * Texto legible del último error sqlsrv.
+     */
+    public function formatearUltimoErrorSqlsrv(): string {
+        return self::formatearErroresSqlsrv($this->ultimoErrorSqlsrv);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>>|null $errors
+     */
+    public static function formatearErroresSqlsrv($errors): string {
+        if (empty($errors) || !is_array($errors)) {
+            return '';
+        }
+        $partes = [];
+        foreach ($errors as $e) {
+            $partes[] = trim(
+                ($e['SQLSTATE'] ?? '') . ' [' . ($e['code'] ?? '') . '] ' . ($e['message'] ?? '')
+            );
+        }
+        return implode(' | ', array_filter($partes));
+    }
+
     private function servidor($nameServer) {
         if($nameServer == 'central'){
             return array($this->host_central, $this->database_central);
@@ -137,37 +189,58 @@ class Conexion{
             // --- LÓGICA DE CREDENCIALES DINÁMICAS ---
 
             $usuario_final = $this->user;
-            $clave_final = $this->pass; 
+            $clave_final = $this->pass;
+            $origen_usuario = '.env USER';
+            $origen_clave = '.env PASS';
 
             // Si es una conexión a una sucursal local (sin nombre de servidor específico)
             if (empty($nameServer)) {
-                // Usamos las credenciales de la sesión SI existen y NO están vacías.
-                // Si son NULL o vacías en la BD, se usarán los valores por defecto del .env.
                 if (isset($_SESSION['usuario_dns']) && !empty($_SESSION['usuario_dns'])) {
                     $usuario_final = $_SESSION['usuario_dns'];
+                    $origen_usuario = 'SUCURSALES_LAKERS.USUARIO_DNS';
                 }
                 if (isset($_SESSION['clave_dns']) && !empty($_SESSION['clave_dns'])) {
                     $clave_final = $_SESSION['clave_dns'];
+                    $origen_clave = 'SUCURSALES_LAKERS.CLAVE_DNS';
                 }
-            } 
+            }
             elseif ($nameServer == 'locales' || $nameServer == 'suc_uy') {
-                $clave_final = $this->pass_locales; 
+                $clave_final = $this->pass_locales;
+                $origen_clave = '.env PASS_LOCALES';
             }
             elseif ($nameServer == 'central' || $nameServer == 'uy') {
-                // Para central y uy, usar credenciales por defecto
                 $usuario_final = 'sa';
                 $clave_final = 'Axoft1988';
+                $origen_usuario = 'hardcoded central/uy';
+                $origen_clave = 'hardcoded central/uy';
             }
-            elseif ($nameServer != 'central' && $nameServer != 'uy' 
+            elseif ($nameServer != 'central' && $nameServer != 'uy'
                     && $nameServer != 'suc_uy' && $nameServer != 'locales') {
-                // Para otras conexiones (sucursales específicas), usar credenciales de sesión si existen
                 if (isset($_SESSION['usuario_dns']) && !empty($_SESSION['usuario_dns'])) {
                     $usuario_final = $_SESSION['usuario_dns'];
+                    $origen_usuario = 'SUCURSALES_LAKERS.USUARIO_DNS';
                 }
                 if (isset($_SESSION['clave_dns']) && !empty($_SESSION['clave_dns'])) {
                     $clave_final = $_SESSION['clave_dns'];
+                    $origen_clave = 'SUCURSALES_LAKERS.CLAVE_DNS';
                 }
             }
+
+            $characterSet = (is_string($this->character) && $this->character !== '')
+                ? $this->character
+                : 'UTF-8';
+
+            $this->ultimoIntentoConexion = [
+                'tipo'           => $nameServer === null || $nameServer === '' ? 'sucursal' : (string) $nameServer,
+                'servidor'       => $serverDB[0],
+                'base_datos'     => $serverDB[1],
+                'usuario'        => $usuario_final,
+                'clave'          => $clave_final,
+                'origen_usuario' => $origen_usuario,
+                'origen_clave'   => $origen_clave,
+                'login_timeout'  => 10,
+                'character_set'  => $characterSet,
+            ];
             
             // --- FIN DE LA LÓGICA ---
 
@@ -175,7 +248,7 @@ class Conexion{
                 "Database" => $serverDB[1], 
                 "UID" => $usuario_final, 
                 "PWD" => $clave_final, 
-                "CharacterSet" => $this->character,
+                "CharacterSet" => $characterSet,
                 "LoginTimeout" => 10,
                 "ConnectionPooling" => 0,
             );
@@ -183,14 +256,25 @@ class Conexion{
             $cid = sqlsrv_connect($serverDB[0], $params);
 
             if(!$cid) {
-                error_log("Error de conexión SQL Server: " . print_r(sqlsrv_errors(), true));
+                $this->guardarUltimoErrorSqlsrv(sqlsrv_errors(SQLSRV_ERR_ALL));
+                if (is_array($this->ultimoIntentoConexion)) {
+                    $this->ultimoIntentoConexion['resultado'] = 'fallo';
+                    $this->ultimoIntentoConexion['error_sql'] = $this->formatearUltimoErrorSqlsrv();
+                }
+                error_log("Error de conexión SQL Server: " . print_r($this->ultimoErrorSqlsrv, true));
                 return false;
             }
+
+            if (is_array($this->ultimoIntentoConexion)) {
+                $this->ultimoIntentoConexion['resultado'] = 'ok';
+            }
+            $this->guardarUltimoErrorSqlsrv(null);
 
             $_SESSION['cid'] = $cid;
             return $cid;
             
         } catch (Exception $e) {
+            $this->guardarUltimoErrorSqlsrv([['message' => $e->getMessage()]]);
             error_log("Error de conexión: " . $e->getMessage()); 
             return false;
         }

@@ -64,25 +64,44 @@ class DotEnv
         }
     }
 
+    /**
+     * Lee una variable de entorno de forma confiable.
+     * getenv() puede devolver false de forma intermitente (no es thread-safe),
+     * por eso priorizamos $_ENV/$_SERVER que load() ya pobló en esta request.
+     *
+     * @return string|null
+     */
+    private static function env(string $name)
+    {
+        if (array_key_exists($name, $_ENV) && $_ENV[$name] !== false) {
+            return $_ENV[$name];
+        }
+        if (array_key_exists($name, $_SERVER) && $_SERVER[$name] !== false) {
+            return $_SERVER[$name];
+        }
+        $val = getenv($name);
+        return $val === false ? null : $val;
+    }
+
     public function listVars(){
         (new DotEnv(self::resolveEnvPath()))->load();
 
         $vars = array(
 
-            'HOST_CENTRAL' => getenv('HOST_CENTRAL'),
-            'HOST_LOCALES' => getenv('HOST_LOCALES'),
-            'DATABASE_CENTRAL' => getenv('DATABASE_CENTRAL'),
-            'DATABASE_LOCALES' => getenv('DATABASE_LOCALES'),
-            'DATABASE_UY' => getenv('DATABASE_UY'),
-            'DATABASE_SUC_UY' => getenv('DATABASE_SUC_UY'),
-            'USER' => getenv('USER'),
-            'PASS' => getenv('PASS'),
-            'PASS_LOCALES' => getenv('PASS_LOCALES'),
-            'CHARACTER' => getenv('CHARACTER'),
-            'ENV' => getenv('ENV'),
-            'HOST_EMAIL' => getenv('HOST_EMAIL'),
-            'USER_EMAIL' => getenv('USER_EMAIL'),
-            'PASS_EMAIL' => getenv('PASS_EMAIL'),
+            'HOST_CENTRAL' => self::env('HOST_CENTRAL'),
+            'HOST_LOCALES' => self::env('HOST_LOCALES'),
+            'DATABASE_CENTRAL' => self::env('DATABASE_CENTRAL'),
+            'DATABASE_LOCALES' => self::env('DATABASE_LOCALES'),
+            'DATABASE_UY' => self::env('DATABASE_UY'),
+            'DATABASE_SUC_UY' => self::env('DATABASE_SUC_UY'),
+            'USER' => self::env('USER'),
+            'PASS' => self::env('PASS'),
+            'PASS_LOCALES' => self::env('PASS_LOCALES'),
+            'CHARACTER' => self::env('CHARACTER') ?: 'UTF-8',
+            'ENV' => self::env('ENV'),
+            'HOST_EMAIL' => self::env('HOST_EMAIL'),
+            'USER_EMAIL' => self::env('USER_EMAIL'),
+            'PASS_EMAIL' => self::env('PASS_EMAIL'),
             
 
         );

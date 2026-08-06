@@ -5,12 +5,70 @@ GrupoSesion::requiereLogin('../login.php');
 
 if (empty($_SESSION['sucursalesGrupo']) || !is_array($_SESSION['sucursalesGrupo'])) {
 	$_SESSION['carga_pedido_error'] = 'No hay sucursales configuradas para el grupo empresario.';
+	$_SESSION['bloquear_reintento_carga_automatico'] = true;
 	header('Location: ../index.php');
 	exit;
 }
 
 set_time_limit(300);
 ini_set('max_execution_time', '300');
+
+/**
+ * Registra fallo de carga de sucursal en log de archivo + error_log de PHP.
+ */
+function logFalloCargaGrupo(array $context) {
+	$dir = __DIR__ . '/../../logs';
+	if (!is_dir($dir)) {
+		@mkdir($dir, 0755, true);
+	}
+	$context['fecha'] = date('c');
+	$context['usuario'] = $_SESSION['username'] ?? null;
+	$context['codClient'] = $_SESSION['codClient'] ?? null;
+	$line = json_encode($context, JSON_UNESCAPED_UNICODE) . PHP_EOL;
+	@file_put_contents($dir . '/carga-pedido-grupo.log', $line, FILE_APPEND | LOCK_EX);
+	error_log('[cargaPedido grupo] ' . trim($line));
+}
+
+/**
+ * @return array{numero: int, nombre: string, motivo: string, detalle?: string, tipo: string, conexion?: array}
+ */
+function registrarFalloSucursalCarga(int $suc, string $nombre, string $tipo, string $motivo, array $extra = []) {
+	$entry = array_merge([
+		'numero' => $suc,
+		'nombre' => $nombre,
+		'tipo'   => $tipo,
+		'motivo' => $motivo,
+	], $extra);
+	logFalloCargaGrupo($entry);
+	return $entry;
+}
+
+/**
+ * Detalle de conexión usado + valores crudos en Lakers.
+ */
+function armarDetalleConexionSucursal(array $config, Conexion $conexion): array {
+	$intento = $conexion->obtenerUltimoIntentoConexion() ?? [];
+	return array_merge($intento, [
+		'lakers' => [
+			'CONEXION_DNS' => $config['CONEXION_DNS'] ?? null,
+			'BASE_NOMBRE'  => $config['BASE_NOMBRE'] ?? null,
+			'USUARIO_DNS'  => $config['USUARIO_DNS'] ?? null,
+			'CLAVE_DNS'    => $config['CLAVE_DNS'] ?? null,
+		],
+	]);
+}
+
+function registrarIntentoConexionSesion(int $suc, string $nombre, array $conexion, bool $ok, array $extra = []) {
+	if (!isset($_SESSION['carga_pedido_intentos']) || !is_array($_SESSION['carga_pedido_intentos'])) {
+		$_SESSION['carga_pedido_intentos'] = [];
+	}
+	$_SESSION['carga_pedido_intentos'][] = array_merge([
+		'numero'   => $suc,
+		'nombre'   => $nombre,
+		'ok'       => $ok,
+		'conexion' => $conexion,
+	], $extra);
+}
 
 /**
  * Inserta filas en SOF_PEDIDOS_CARGA_LOPEZ en lotes de 200 (límite SQL Server ~2100 params).
@@ -52,7 +110,7 @@ $sucursalesGrupo = $_SESSION['sucursalesGrupo'];
 $totalSucursales = count($sucursalesGrupo);
 
 if (empty($_SESSION['pedido_grupo_cargado'])) {
-	unset($_SESSION['sucursales_activas'], $_SESSION['sucursales_info']);
+	unset($_SESSION['sucursales_activas'], $_SESSION['sucursales_info'], $_SESSION['carga_pedido_intentos']);
 }
 
 $sucursalObj = new Sucursal();
@@ -66,7 +124,15 @@ $conexionCentral = new Conexion();
 $cidCentral = $conexionCentral->conectar('central');
 
 if ($cidCentral === false) {
-	$_SESSION['carga_pedido_error'] = 'No se pudo conectar con la base central.';
+	$errorSql = $conexionCentral->formatearUltimoErrorSqlsrv();
+	$_SESSION['carga_pedido_error'] = GrupoSesion::mensajeConexionAmigable('conexion_central', $errorSql);
+	logFalloCargaGrupo([
+		'tipo'     => 'conexion_central',
+		'motivo'   => $_SESSION['carga_pedido_error'],
+		'detalle'  => $errorSql,
+		'conexion' => $conexionCentral->obtenerUltimoIntentoConexion(),
+	]);
+	$_SESSION['bloquear_reintento_carga_automatico'] = true;
 	header('Location: ../index.php');
 	exit;
 }
@@ -148,35 +214,90 @@ foreach ($sucursalesGrupo as $sucRaw) {
 	flush();
 
 	if (!isset($configSucursales[$suc])) {
-		$fallidas[] = [
-			'numero' => $suc,
-			'nombre' => $nombre,
-			'motivo' => 'No se encontró configuración de conexión para la sucursal.',
-		];
+		$fallidas[] = registrarFalloSucursalCarga(
+			$suc,
+			$nombre,
+			'sin_config',
+			GrupoSesion::mensajeConexionAmigable('sin_config'),
+			['detalle' => 'Sin fila en SUCURSALES_LAKERS para NRO_SUCURSAL ' . $suc]
+		);
+		continue;
+	}
+
+	$config = $configSucursales[$suc];
+	$conexionDns = trim((string) ($config['CONEXION_DNS'] ?? ''));
+	$baseNombre = trim((string) ($config['BASE_NOMBRE'] ?? ''));
+
+	// Sucursales sin DNS o base en SUCURSALES_LAKERS (ej. outlets 912/933):
+	// se omiten silenciosamente, no se intenta conectar ni se marcan como fallo.
+	if ($conexionDns === '' || $baseNombre === '') {
+		logFalloCargaGrupo([
+			'tipo'    => 'omitida_sin_dns',
+			'numero'  => $suc,
+			'nombre'  => $nombre,
+			'motivo'  => 'Sucursal omitida: sin CONEXION_DNS o BASE_NOMBRE en SUCURSALES_LAKERS.',
+			'lakers'  => [
+				'CONEXION_DNS' => $config['CONEXION_DNS'] ?? null,
+				'BASE_NOMBRE'  => $config['BASE_NOMBRE'] ?? null,
+			],
+		]);
 		continue;
 	}
 
 	$conexionSucursal = new Conexion();
-	$conexionSucursal->aplicarConfiguracionSucursal($configSucursales[$suc]);
+	$conexionSucursal->aplicarConfiguracionSucursal($config);
 	$cid = $conexionSucursal->conectar();
+	$detalleConexion = armarDetalleConexionSucursal($config, $conexionSucursal);
 
 	if ($cid === false) {
-		$fallidas[] = [
-			'numero' => $suc,
-			'nombre' => $nombre,
-			'motivo' => 'No se pudo conectar' . ($dsn !== '' ? " ($dsn)" : '') . ' (timeout 10s).',
-		];
+		$errorSql = $conexionSucursal->formatearUltimoErrorSqlsrv();
+		$motivoAmigable = GrupoSesion::mensajeConexionAmigable('conexion', $errorSql);
+		registrarIntentoConexionSesion($suc, $nombre, $detalleConexion, false, [
+			'tipo'    => 'conexion',
+			'motivo'  => $motivoAmigable,
+			'detalle' => $errorSql,
+		]);
+		$fallidas[] = registrarFalloSucursalCarga(
+			$suc,
+			$nombre,
+			'conexion',
+			$motivoAmigable,
+			[
+				'detalle'  => $errorSql !== '' ? $errorSql : 'sqlsrv_connect devolvió false sin mensaje',
+				'conexion' => $detalleConexion,
+			]
+		);
 		continue;
 	}
+
+	registrarIntentoConexionSesion($suc, $nombre, $detalleConexion, true, ['tipo' => 'conexion']);
+	logFalloCargaGrupo([
+		'tipo'     => 'conexion_ok',
+		'numero'   => $suc,
+		'nombre'   => $nombre,
+		'conexion' => $detalleConexion,
+	]);
 
 	$result1 = @sqlsrv_query($cid, $sqlStock);
 
 	if ($result1 === false) {
-		$fallidas[] = [
-			'numero' => $suc,
-			'nombre' => $nombre,
-			'motivo' => 'Error al ejecutar la consulta de stock y ventas.',
-		];
+		$errorSql = Conexion::formatearErroresSqlsrv(sqlsrv_errors(SQLSRV_ERR_ALL));
+		$motivoAmigable = GrupoSesion::mensajeConexionAmigable('consulta_stock', $errorSql);
+		$fallidas[] = registrarFalloSucursalCarga(
+			$suc,
+			$nombre,
+			'consulta_stock',
+			$motivoAmigable,
+			[
+				'detalle'  => $errorSql,
+				'conexion' => $detalleConexion,
+			]
+		);
+		registrarIntentoConexionSesion($suc, $nombre, $detalleConexion, false, [
+			'tipo'    => 'consulta_stock',
+			'motivo'  => $motivoAmigable,
+			'detalle' => $errorSql,
+		]);
 		sqlsrv_close($cid);
 		continue;
 	}
@@ -203,7 +324,16 @@ foreach ($sucursalesGrupo as $sucRaw) {
 
 	if ($errorFatal === null && !empty($filasSucursal)) {
 		if (!insertarLoteCargaLopez($cidCentral, $filasSucursal)) {
-			$errorFatal = 'Error al guardar datos en la base central.';
+			$errorSql = Conexion::formatearErroresSqlsrv(sqlsrv_errors(SQLSRV_ERR_ALL));
+			$errorFatal = GrupoSesion::mensajeConexionAmigable('insert_central', $errorSql);
+			logFalloCargaGrupo([
+				'tipo'    => 'insert_central',
+				'numero'  => $suc,
+				'nombre'  => $nombre,
+				'motivo'  => $errorFatal,
+				'detalle' => $errorSql,
+				'filas'   => count($filasSucursal),
+			]);
 			break;
 		}
 	}
@@ -222,6 +352,8 @@ $_SESSION['sucursales_activas'] = $sucursalesActivas;
 $_SESSION['sucursales_info'] = $sucursalesInfo;
 $_SESSION['sucursales_conexion_fallidas'] = $fallidas;
 $_SESSION['pedido_grupo_cargado'] = true;
+$_SESSION['omitir_rechequeo_index'] = true;
+unset($_SESSION['bloquear_reintento_carga_automatico']);
 $_SESSION['nuevoPedido'] = 0;
 
 echo '<script>window.location.href = "../index.php";</script>';

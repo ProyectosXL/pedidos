@@ -20,10 +20,21 @@
                                 <strong><?= htmlspecialchars($fallo['nombre'] ?? '') ?></strong>
                                 (Nº <?= htmlspecialchars((string) ($fallo['numero'] ?? '')) ?>)
                                 <br>
-                                <small class="text-muted"><?= htmlspecialchars($fallo['motivo'] ?? '') ?></small>
+                                <small class="text-muted"><?php
+                                    $tipoFallo = (string) ($fallo['tipo'] ?? '');
+                                    $detalleTecnico = (string) ($fallo['detalle'] ?? '');
+                                    echo htmlspecialchars(
+                                        $tipoFallo !== ''
+                                            ? GrupoSesion::mensajeConexionAmigable($tipoFallo, $detalleTecnico)
+                                            : ($fallo['motivo'] ?? 'No se pudo conectar con este local.')
+                                    );
+                                ?></small>
                             </li>
                         <?php endforeach; ?>
                     </ul>
+                    <p class="small text-muted mb-0 mt-3">
+                        Si el problema persiste, contacte a soporte técnico.
+                    </p>
                 <?php endif; ?>
             </div>
             <div class="modal-footer">
