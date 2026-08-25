@@ -171,13 +171,13 @@ include_once __DIR__.'/../../class/pedido.php';
                         <th></th>
                         <th data-col="precio"></th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th>
-                                <i class="fas fa-boxes"></i> Stock
+                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Stock">
+                                <i class="fas fa-boxes"></i>
                             </th>
-                            <th>
-                                <i class="fas fa-chart-line"></i> Vendido
+                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Vendido">
+                                <i class="fas fa-chart-line"></i>
                             </th>
-                            <th>
+                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Pedido">
                                 <i class="fas fa-shopping-cart"></i>
                             </th>
                         <?php endforeach; ?>

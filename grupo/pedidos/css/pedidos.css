@@ -40,8 +40,8 @@ body {
 #id_tabla {
     font-size: 0.8rem;
     width: max-content;
-    min-width: 100%;
-    margin-bottom: 0;
+    max-width: 100%;
+    margin: 0 auto;
     table-layout: auto;
 }
 #id_tabla th, #id_tabla td {
@@ -228,7 +228,9 @@ tr[style*="background-color: rgb(255, 204, 204)"] {
     }
     #id_tabla {
         font-size: 0.75rem;
-        width: 100%;
+        width: max-content;
+        max-width: 100%;
+        margin: 0 auto;
     }
 }
 
