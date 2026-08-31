@@ -643,6 +643,51 @@ function ajustarMargenTabla() {
     }
 }
 
+/**
+ * Al navegar con Tab entre los inputs de cantidad, el scroll automático del navegador
+ * no tiene en cuenta el thead pegajoso (arriba) ni las columnas fijadas por el usuario
+ * (izquierda), por lo que la celda enfocada puede quedar tapada detrás de ellos aunque
+ * "técnicamente" esté dentro del área visible del contenedor. Corregimos el scroll a mano.
+ */
+function scrollCeldaEnfocadaALaVista(input) {
+    const container = document.querySelector('.table-container');
+    const celda = input.closest('td');
+    if (!container || !celda) return;
+
+    const contRect = container.getBoundingClientRect();
+    const celdaRect = celda.getBoundingClientRect();
+
+    const thead = document.querySelector('#id_tabla thead');
+    const alturaHeader = thead ? thead.getBoundingClientRect().height : 0;
+
+    let anchoColumnasFijas = 0;
+    document.querySelectorAll('#id_tabla thead th.col-fija').forEach(function(th) {
+        const borde = th.offsetLeft + th.offsetWidth;
+        if (borde > anchoColumnasFijas) anchoColumnasFijas = borde;
+    });
+
+    let scrollTop = container.scrollTop;
+    let scrollLeft = container.scrollLeft;
+
+    const limiteSuperior = contRect.top + alturaHeader;
+    if (celdaRect.top < limiteSuperior) {
+        scrollTop -= (limiteSuperior - celdaRect.top);
+    } else if (celdaRect.bottom > contRect.bottom) {
+        scrollTop += (celdaRect.bottom - contRect.bottom);
+    }
+
+    const limiteIzquierdo = contRect.left + anchoColumnasFijas;
+    if (celdaRect.left < limiteIzquierdo) {
+        scrollLeft -= (limiteIzquierdo - celdaRect.left);
+    } else if (celdaRect.right > contRect.right) {
+        scrollLeft += (celdaRect.right - contRect.right);
+    }
+
+    if (scrollTop !== container.scrollTop || scrollLeft !== container.scrollLeft) {
+        container.scrollTo({ top: scrollTop, left: scrollLeft, behavior: 'auto' });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const thCodigo = document.getElementById('thCodigoSort');
     if (thCodigo) thCodigo.addEventListener('click', ordenarPorCodigo);
@@ -653,6 +698,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     ajustarMargenTabla();
+
+    const tabla = document.getElementById('id_tabla');
+    if (tabla) {
+        tabla.addEventListener('focusin', function(e) {
+            if (e.target.matches("input[name^='cantPed_']")) {
+                scrollCeldaEnfocadaALaVista(e.target);
+            }
+        });
+    }
 
     let resizeTimer;
     window.addEventListener('resize', function() {
