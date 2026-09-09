@@ -2,6 +2,18 @@
 
 class HistorialPedido
 {
+    /**
+     * Talonarios de pedidos visibles en el historial, por tipo.
+     * Quedan afuera los de ecommerce (98 MercadoLibre, 99 VTEX) y 5 (recodificaciones).
+     */
+    const TALONARIOS_REPOSICION = [96, 97, 120];
+
+    /** Talonarios de distribución */
+    const TALONARIOS_DISTRIBUCION = [1];
+
+    /** Talonarios de rotación (2 = PEDIDOS DE ACCESORIOS) */
+    const TALONARIOS_ROTACION = [2];
+
     private $cid;
     public $cid_central;
 
@@ -25,6 +37,46 @@ class HistorialPedido
     public static function getDebugTrace()
     {
         return self::$debugTrace;
+    }
+
+    /**
+     * Tipo de pedido según el talonario (mismo criterio que sistemas/pedidosNew).
+     * @param mixed $talonPed
+     */
+    public static function tipoDePedido($talonPed): string
+    {
+        $talon = (int) $talonPed;
+
+        if (in_array($talon, self::TALONARIOS_DISTRIBUCION, true)) {
+            return 'Distribución';
+        }
+        if (in_array($talon, self::TALONARIOS_REPOSICION, true)) {
+            return 'Reposición';
+        }
+        if (in_array($talon, self::TALONARIOS_ROTACION, true)) {
+            return 'Rotación';
+        }
+
+        return 'Otro';
+    }
+
+    /**
+     * Talonarios visibles en el historial (mismos en central y Uruguay).
+     * @return int[]
+     */
+    public static function talonariosPermitidos(): array
+    {
+        return array_merge(
+            self::TALONARIOS_DISTRIBUCION,
+            self::TALONARIOS_ROTACION,
+            self::TALONARIOS_REPOSICION
+        );
+    }
+
+    /** Lista de talonarios lista para interpolar en SQL. */
+    private function talonariosSQL(): string
+    {
+        return implode(', ', array_map('intval', self::talonariosPermitidos()));
     }
 
   /**
@@ -88,21 +140,25 @@ class HistorialPedido
         // Construir lista de códigos para SQL
         $codigosSQL = "'" . implode("', '", array_map(function($cod) { return str_replace("'", "''", $cod); }, $sucursalesValidas)) . "'";
 
+        $talonariosSQL = $this->talonariosSQL();
+
         $sql = "
             SET DATEFORMAT YMD
 
-            SELECT CAST(FECHA_PEDI AS DATE) FECHA, A.COD_CLIENT, A.NRO_PEDIDO, LEYENDA_1, CAST(B.CANT AS INT) CANT,
-            CASE WHEN ESTADO = 5 THEN 'ANULADO' ELSE 'APROBADO' END ESTADO 
+            SELECT CAST(FECHA_PEDI AS DATE) FECHA, A.COD_CLIENT, A.NRO_PEDIDO, A.TALON_PED, LEYENDA_1, CAST(B.CANT AS INT) CANT,
+            CASE WHEN ESTADO = 5 THEN 'ANULADO' ELSE 'APROBADO' END ESTADO
             FROM GVA21 A
             INNER JOIN
             (
-                SELECT NRO_PEDIDO, CAST(SUM(CANT_PEDID) AS FLOAT) CANT 
-                FROM GVA03 
-                GROUP BY NRO_PEDIDO
+                SELECT ID_GVA21, CAST(SUM(CANT_PEDID) AS FLOAT) CANT
+                FROM GVA03
+                WHERE TALON_PED IN ($talonariosSQL)
+                GROUP BY ID_GVA21
             ) B
-            ON A.NRO_PEDIDO = B.NRO_PEDIDO
+            ON A.ID_GVA21 = B.ID_GVA21
             WHERE COD_CLIENT IN ($codigosSQL)
-            AND FECHA_PEDI > (GETDATE()-60) 
+            AND A.TALON_PED IN ($talonariosSQL)
+            AND FECHA_PEDI > (GETDATE()-60)
             AND (FECHA_PEDI BETWEEN '$desde' AND '$hasta')
             AND A.COD_CLIENT = '$sucursal'
             ORDER BY 1 desc, 2 desc
@@ -110,6 +166,7 @@ class HistorialPedido
 
         $this->logDebug('traerHistorialPorSucursal_sql', [
             'codigos_count' => count($sucursalesValidas),
+            'talonarios'    => $talonariosSQL,
             'desde'         => $desde,
             'hasta'         => $hasta,
         ]);
@@ -197,27 +254,32 @@ class HistorialPedido
             return str_replace("'", "''", $cod);
         }, $sucursalesValidas)) . "'";
 
+        $talonariosSQL = $this->talonariosSQL();
+
         $sql = "
             SET DATEFORMAT YMD
 
-            SELECT CAST(FECHA_PEDI AS DATE) FECHA, A.COD_CLIENT, A.NRO_PEDIDO, LEYENDA_1, CAST(B.CANT AS INT) CANT, 
-            CASE WHEN ESTADO = 5 THEN 'ANULADO' ELSE 'APROBADO' END ESTADO 
+            SELECT CAST(FECHA_PEDI AS DATE) FECHA, A.COD_CLIENT, A.NRO_PEDIDO, A.TALON_PED, LEYENDA_1, CAST(B.CANT AS INT) CANT,
+            CASE WHEN ESTADO = 5 THEN 'ANULADO' ELSE 'APROBADO' END ESTADO
             FROM GVA21 A
             INNER JOIN
             (
-                SELECT NRO_PEDIDO, CAST(SUM(CANT_PEDID) AS FLOAT) CANT 
-                FROM GVA03 
-                GROUP BY NRO_PEDIDO
+                SELECT ID_GVA21, CAST(SUM(CANT_PEDID) AS FLOAT) CANT
+                FROM GVA03
+                WHERE TALON_PED IN ($talonariosSQL)
+                GROUP BY ID_GVA21
             ) B
-            ON A.NRO_PEDIDO = B.NRO_PEDIDO
+            ON A.ID_GVA21 = B.ID_GVA21
             WHERE COD_CLIENT IN ($codigosSQL)
-            AND FECHA_PEDI > (GETDATE()-60) 
+            AND A.TALON_PED IN ($talonariosSQL)
+            AND FECHA_PEDI > (GETDATE()-60)
             AND (FECHA_PEDI BETWEEN '$desdeSql' AND '$hastaSql')
             ORDER BY 1 desc, 2 desc
         ";
 
         $this->logDebug('traerHistorialTodasSucursales_sql', [
             'codigos'     => $sucursalesValidas,
+            'talonarios'  => $talonariosSQL,
             'desde'       => $desde,
             'hasta'       => $hasta,
             'sql_preview' => preg_replace('/\s+/', ' ', substr($sql, 0, 500)),
@@ -259,9 +321,10 @@ class HistorialPedido
      * Trae el detalle de un pedido específico
      * @param string $pedido Número de pedido
      * @param string $sucursal Código de la sucursal (ej: FRBAUD, FRORCE, etc.)
+     * @param string|int|null $talon Talonario del pedido (opcional; el mismo número puede repetirse entre talonarios)
      * @return array Array con los resultados del detalle del pedido
      */
-    public function traerDetallePedido($pedido, $sucursal)
+    public function traerDetallePedido($pedido, $sucursal, $talon = null)
     {
         if (!$this->cid_central) {
             return [];
@@ -270,8 +333,8 @@ class HistorialPedido
         require_once __DIR__.'/../../../class/sucursal.php';
         $sucursalObj = new Sucursal();
         $idFranquicia = isset($_SESSION['ID_FRANQUICIA']) ? $_SESSION['ID_FRANQUICIA'] : null;
-        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, 'central');
-        
+        $sucursalesValidas = $sucursalObj->obtenerListaCodigosCliente($idFranquicia, GrupoSesion::obtenerBaseDatos());
+
         if (!in_array($sucursal, $sucursalesValidas)) {
             return [];
         }
@@ -280,17 +343,24 @@ class HistorialPedido
         $pedido = str_replace("'", "''", $pedido);
         $sucursal = str_replace("'", "''", $sucursal);
 
+        // Si viene el talonario se acota a ese; si no, a los talonarios habilitados
+        $talonInt = (int) $talon;
+        $filtroTalon = in_array($talonInt, self::talonariosPermitidos(), true)
+            ? "AND A.TALON_PED = $talonInt"
+            : 'AND A.TALON_PED IN (' . $this->talonariosSQL() . ')';
+
         $sql = "
             SET DATEFORMAT YMD
 
-            SELECT CAST(A.FECHA_PEDI AS DATE) FECHA, B.COD_ARTICU, C.DESCRIPCIO, CAST(B.CANT_PEDID AS FLOAT) CANT 
+            SELECT CAST(A.FECHA_PEDI AS DATE) FECHA, A.TALON_PED, B.COD_ARTICU, C.DESCRIPCIO, CAST(B.CANT_PEDID AS FLOAT) CANT
             FROM GVA03 B
             INNER JOIN GVA21 A
-            ON A.NRO_PEDIDO = B.NRO_PEDIDO AND A.TALON_PED = B.TALON_PED
+            ON A.ID_GVA21 = B.ID_GVA21
             INNER JOIN STA11 C
             ON B.COD_ARTICU = C.COD_ARTICU
             WHERE A.NRO_PEDIDO = '$pedido'
             AND A.COD_CLIENT = '$sucursal'
+            $filtroTalon
         ";
 
         ini_set('max_execution_time', 300);

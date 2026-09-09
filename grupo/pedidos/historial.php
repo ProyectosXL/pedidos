@@ -4,9 +4,11 @@ require_once __DIR__ . '/../../class/sucursal.php';
 
 GrupoSesion::requiereLogin('../../login.php');
 
-$ayer = date('Y-m-d', strtotime('-1 day'));
-$desde = isset($_GET['desde']) ? $_GET['desde'] : $ayer;
-$hasta = isset($_GET['hasta']) ? $_GET['hasta'] : $ayer;
+// Por defecto: últimos 7 días incluyendo hoy
+$hoy = date('Y-m-d');
+$hace7Dias = date('Y-m-d', strtotime('-6 days'));
+$desde = isset($_GET['desde']) ? $_GET['desde'] : $hace7Dias;
+$hasta = isset($_GET['hasta']) ? $_GET['hasta'] : $hoy;
 $sucursalSeleccionada = $_GET['sucursal'] ?? 'TODOS';
 
 $sucursalObj = new Sucursal();
@@ -44,14 +46,18 @@ $historial = new HistorialPedido();
         .fixed-header .container-fluid {
             padding: 0 15px;
         }
+        /* --header-h la recalcula el JS con la altura real del encabezado fijo */
+        :root {
+            --header-h: 150px;
+        }
         .container-fluid.table-wrapper {
-            margin-top: 200px;
+            margin-top: calc(var(--header-h) + 15px);
             padding: 0 15px;
         }
         .table-container {
             overflow-x: auto;
             overflow-y: auto;
-            max-height: calc(100vh - 220px);
+            max-height: calc(100vh - var(--header-h) - 45px);
             margin-bottom: 20px;
             border: 1px solid #dee2e6;
             border-radius: 4px;
@@ -94,8 +100,27 @@ $historial = new HistorialPedido();
             background-color: #dc3545;
             color: white;
         }
+        .badge-reposicion {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .badge-distribucion {
+            background-color: #6610f2;
+            color: white;
+        }
+        .badge-rotacion {
+            background-color: #fd7e14;
+            color: white;
+        }
+        .badge-otro {
+            background-color: #6c757d;
+            color: white;
+        }
         .search-box {
             position: relative;
+        }
+        .search-box input {
+            padding-right: 1.8rem;
         }
         .clear-search {
             position: absolute;
@@ -107,26 +132,63 @@ $historial = new HistorialPedido();
         }
         .page-title {
             font-size: 1.3rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             font-weight: 600;
         }
         .filter-section {
             background-color: #e9ecef;
-            padding: 15px;
+            padding: 12px 15px;
             border-radius: 4px;
-            margin-bottom: 15px;
+            margin-bottom: 0;
+        }
+        .filter-section .form-label {
+            margin-bottom: 0.2rem;
+            font-size: 0.85rem;
+        }
+        .botones-filtro .btn {
+            white-space: nowrap;
+        }
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background-color: rgba(255, 255, 255, 0.75);
+            align-items: center;
+            justify-content: center;
+        }
+        #loadingOverlay.show {
+            display: flex;
+        }
+        #loadingOverlay .loading-box {
+            background-color: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.12);
+            text-align: center;
+        }
+        #loadingOverlay .loading-text {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            color: #495057;
         }
         @media (max-width: 768px) {
-            .container-fluid.table-wrapper {
-                margin-top: 250px;
-            }
             #historialTable {
                 font-size: 0.8rem;
             }
         }
     </style>
 </head>
-<body>	
+<body>
+
+    <div id="loadingOverlay">
+        <div class="loading-box">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <div class="loading-text">Consultando pedidos, aguarde un momento...</div>
+        </div>
+    </div>
 
     <div class="fixed-header">
         <div class="container-fluid">
@@ -134,9 +196,10 @@ $historial = new HistorialPedido();
                 <i class="fas fa-history"></i> Historial de Pedidos
             </h1>
             <div class="filter-section">
-                <form class="row g-3" action="" id="sucu" method="GET">
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold">Sucursal:</label>
+                <?php $hayFiltrosTabla = isset($_GET['sucursal']); ?>
+                <form class="row g-2 align-items-end" action="" id="sucu" method="GET">
+                    <div class="<?= $hayFiltrosTabla ? 'col-lg-2 col-md-4 col-sm-6' : 'col-lg-4 col-md-5 col-sm-6' ?>">
+                        <label class="form-label fw-bold" for="sucursal">Sucursal:</label>
                         <select class="form-select form-select-sm" name="sucursal" id="sucursal">
                             <option value="TODOS" <?= $sucursalSeleccionada === 'TODOS' ? 'selected' : '' ?>>Todos</option>
                             <?php foreach ($opcionesSucursales as $opcion): ?>
@@ -146,30 +209,40 @@ $historial = new HistorialPedido();
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold">Desde:</label>
-                        <input class="form-control form-control-sm" type="date" name="desde" value="<?= $desde ?>">
+                    <div class="col-lg-2 col-md-3 col-sm-3 col-6">
+                        <label class="form-label fw-bold" for="desde">Desde:</label>
+                        <input class="form-control form-control-sm" type="date" name="desde" id="desde" value="<?= $desde ?>">
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold">Hasta:</label>
-                        <input class="form-control form-control-sm" type="date" name="hasta" value="<?= $hasta ?>">
+                    <div class="col-lg-2 col-md-3 col-sm-3 col-6">
+                        <label class="form-label fw-bold" for="hasta">Hasta:</label>
+                        <input class="form-control form-control-sm" type="date" name="hasta" id="hasta" value="<?= $hasta ?>">
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary btn-sm me-2">
+                    <?php if($hayFiltrosTabla) { ?>
+                    <div class="col-lg-2 col-md-4 col-sm-6">
+                        <label class="form-label fw-bold" for="tipoFilter">Tipo:</label>
+                        <select class="form-select form-select-sm" id="tipoFilter">
+                            <option value="">Todos los tipos</option>
+                            <option value="Reposición">Reposición</option>
+                            <option value="Distribución">Distribución</option>
+                            <option value="Rotación">Rotación</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-8 col-sm-6">
+                        <label class="form-label fw-bold" for="searchBox">Buscar:</label>
+                        <div class="search-box">
+                            <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="Cliente, pedido u observaciones...">
+                            <i class="fas fa-times clear-search" id="clearSearch"></i>
+                        </div>
+                    </div>
+                    <?php } ?>
+                    <div class="col-lg-auto col-12 ms-lg-auto d-flex gap-2 botones-filtro">
+                        <button type="submit" class="btn btn-primary btn-sm">
                             <i class="fas fa-search"></i> Consultar
                         </button>
                         <a href="../index.php" class="btn btn-secondary btn-sm">
                             <i class="fas fa-arrow-left"></i> Volver
                         </a>
                     </div>
-                    <?php if(isset($_GET['sucursal'])) { ?>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <div class="search-box w-100">
-                            <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="Buscar por cliente, pedido u observaciones...">
-                            <i class="fas fa-times clear-search" id="clearSearch"></i>
-                        </div>
-                    </div>
-                    <?php } ?>
                 </form>
             </div>
         </div>
@@ -180,18 +253,16 @@ $historial = new HistorialPedido();
 <?php
 
 if(isset($_GET['sucursal'])){
-	
+
 	$suc = $_GET['sucursal'];
 
+	$resultados = ($suc <> 'TODOS')
+		? $historial->traerHistorialPorSucursal($suc, $desde, $hasta)
+		: $historial->traerHistorialTodasSucursales($desde, $hasta);
 
-	if($suc <> 'TODOS'){
-
-		// Usar la clase para obtener datos de una sucursal específica
-		$resultados = $historial->traerHistorialPorSucursal($suc, $desde, $hasta);
-
-		if (empty($resultados)) {
-			echo '<div class="alert alert-info">No se encontraron registros para los filtros seleccionados.</div>';
-		} else {
+	if (empty($resultados)) {
+		echo '<div class="alert alert-info">No se encontraron registros para los filtros seleccionados.</div>';
+	} else {
 
 ?>
 			<div class="table-container">
@@ -201,6 +272,7 @@ if(isset($_GET['sucursal'])){
 							<th>CLIENTE</th>
 							<th>FECHA</th>
 							<th>PEDIDO</th>
+							<th>TIPO</th>
 							<th>OBSERVACIONES</th>
 							<th>CANTIDAD</th>
 							<th>ESTADO</th>
@@ -212,15 +284,27 @@ if(isset($_GET['sucursal'])){
 						foreach($resultados as $v){
 							$totalRegistros++;
 							$estadoClass = ($v['ESTADO'] == 'ANULADO') ? 'badge-anulado' : 'badge-aprobado';
+							$tipo = HistorialPedido::tipoDePedido($v['TALON_PED'] ?? 0);
+							$tipoClasses = [
+								'Distribución' => 'badge-distribucion',
+								'Reposición'   => 'badge-reposicion',
+								'Rotación'     => 'badge-rotacion',
+							];
+							$tipoClass = $tipoClasses[$tipo] ?? 'badge-otro';
 						?>
-							<tr>
+							<tr data-tipo="<?= htmlspecialchars($tipo) ?>">
 								<td><?= htmlspecialchars($v['COD_CLIENT']) ?></td>
 								<td><?= htmlspecialchars($v['FECHA']) ?></td>
 								<td>
-									<a href="detallePed.php?pedido=<?= $v['NRO_PEDIDO'] ?>&suc=<?= $v['COD_CLIENT'] ?>&desde=<?= $desde ?>&hasta=<?= $hasta ?>" 
+									<a href="detallePed.php?pedido=<?= urlencode($v['NRO_PEDIDO']) ?>&suc=<?= urlencode($v['COD_CLIENT']) ?>&talon=<?= urlencode($v['TALON_PED']) ?>&desde=<?= $desde ?>&hasta=<?= $hasta ?>"
 									   class="text-decoration-none fw-bold">
 										<?= htmlspecialchars($v['NRO_PEDIDO']) ?>
 									</a>
+								</td>
+								<td>
+									<span class="badge badge-estado <?= $tipoClass ?>" title="Talonario <?= (int)$v['TALON_PED'] ?>">
+										<?= htmlspecialchars($tipo) ?>
+									</span>
 								</td>
 								<td><?= htmlspecialchars($v['LEYENDA_1']) ?></td>
 								<td class="text-end"><?= number_format($v['CANT'], 0, ',', '.') ?></td>
@@ -237,7 +321,7 @@ if(isset($_GET['sucursal'])){
 					<?php if($totalRegistros > 0) { ?>
 					<tfoot>
 						<tr class="table-info">
-							<td colspan="4" class="text-end fw-bold">Total de registros:</td>
+							<td colspan="5" class="text-end fw-bold">Total de registros:</td>
 							<td class="text-end fw-bold"><?= $totalRegistros ?></td>
 							<td></td>
 						</tr>
@@ -246,71 +330,6 @@ if(isset($_GET['sucursal'])){
 				</table>
 			</div>
 			<?php
-		}
-	}
-	else{
-		// Usar la clase para obtener datos de todas las sucursales
-		$resultados = $historial->traerHistorialTodasSucursales($desde, $hasta);
-
-		if (empty($resultados)) {
-			echo '<div class="alert alert-info">No se encontraron registros para los filtros seleccionados.</div>';
-		} else {
-
-			?>
-			<div class="table-container">
-				<table id="historialTable" class="table table-striped table-hover">
-					<thead>
-						<tr>
-							<th>CLIENTE</th>
-							<th>FECHA</th>
-							<th>PEDIDO</th>
-							<th>OBSERVACIONES</th>
-							<th>CANTIDAD</th>
-							<th>ESTADO</th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php
-						$totalRegistros = 0;
-						foreach($resultados as $v){
-							$totalRegistros++;
-							$estadoClass = ($v['ESTADO'] == 'ANULADO') ? 'badge-anulado' : 'badge-aprobado';
-						?>
-							<tr>
-								<td><?= htmlspecialchars($v['COD_CLIENT']) ?></td>
-								<td><?= htmlspecialchars($v['FECHA']) ?></td>
-								<td>
-									<a href="detallePed.php?pedido=<?= $v['NRO_PEDIDO'] ?>&suc=<?= $v['COD_CLIENT'] ?>&desde=<?= $desde ?>&hasta=<?= $hasta ?>" 
-									   class="text-decoration-none fw-bold">
-										<?= htmlspecialchars($v['NRO_PEDIDO']) ?>
-									</a>
-								</td>
-								<td><?= htmlspecialchars($v['LEYENDA_1']) ?></td>
-								<td class="text-end"><?= number_format($v['CANT'], 0, ',', '.') ?></td>
-								<td>
-									<span class="badge badge-estado <?= $estadoClass ?>">
-										<?= htmlspecialchars($v['ESTADO']) ?>
-									</span>
-								</td>
-							</tr>
-						<?php
-						}
-						?>
-
-					</tbody>
-					<?php if($totalRegistros > 0) { ?>
-					<tfoot>
-						<tr class="table-info">
-							<td colspan="4" class="text-end fw-bold">Total de registros:</td>
-							<td class="text-end fw-bold"><?= $totalRegistros ?></td>
-							<td></td>
-						</tr>
-					</tfoot>
-					<?php } ?>
-				</table>
-			</div>
-			<?php
-		}
 	}
 }
 ?>
@@ -330,17 +349,23 @@ if(isset($_GET['sucursal'])){
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
     <script>
         $(document).ready(function() {
-            // Función de búsqueda
-            function customSearch(value) {
-                var searchTerm = value.toLowerCase();
+            // Filtra por texto (cliente, pedido, observaciones) y por tipo de pedido
+            function aplicarFiltros() {
+                var searchTerm = ($('#searchBox').val() || '').toLowerCase();
+                var tipoSeleccionado = $('#tipoFilter').val() || '';
+
                 $('#historialTable tbody tr').each(function() {
                     var cliente = $(this).find('td:eq(0)').text().toLowerCase();
                     var pedido = $(this).find('td:eq(2)').text().toLowerCase();
-                    var observaciones = $(this).find('td:eq(3)').text().toLowerCase();
-                    
-                    if (cliente.indexOf(searchTerm) !== -1 || 
-                        pedido.indexOf(searchTerm) !== -1 || 
-                        observaciones.indexOf(searchTerm) !== -1) {
+                    var observaciones = $(this).find('td:eq(4)').text().toLowerCase();
+                    var tipo = $(this).data('tipo') || '';
+
+                    var coincideTexto = cliente.indexOf(searchTerm) !== -1 ||
+                        pedido.indexOf(searchTerm) !== -1 ||
+                        observaciones.indexOf(searchTerm) !== -1;
+                    var coincideTipo = tipoSeleccionado === '' || tipo === tipoSeleccionado;
+
+                    if (coincideTexto && coincideTipo) {
                         $(this).show();
                     } else {
                         $(this).hide();
@@ -349,14 +374,44 @@ if(isset($_GET['sucursal'])){
             }
 
             // Evento de búsqueda en el input
-            $('#searchBox').on('keyup', function() {
-                customSearch(this.value);
-            });
+            $('#searchBox').on('keyup', aplicarFiltros);
+
+            // Filtro por tipo de pedido
+            $('#tipoFilter').on('change', aplicarFiltros);
 
             // Limpiar búsqueda
             $('#clearSearch').on('click', function() {
                 $('#searchBox').val('');
-                customSearch('');
+                aplicarFiltros();
+            });
+
+            // El encabezado es fijo y cambia de alto según los filtros y el ancho:
+            // se mide y se publica como variable CSS para que no tape la tabla.
+            function ajustarAltoEncabezado() {
+                var alto = $('.fixed-header').outerHeight();
+                if (alto) {
+                    document.documentElement.style.setProperty('--header-h', alto + 'px');
+                }
+            }
+
+            ajustarAltoEncabezado();
+            $(window).on('resize load', ajustarAltoEncabezado);
+
+            // Spinner: la consulta al servidor puede demorar y la página vieja
+            // queda visible mientras tanto.
+            var overlay = $('#loadingOverlay');
+
+            function mostrarSpinner() {
+                overlay.addClass('show');
+            }
+
+            $('#sucu').on('submit', mostrarSpinner);
+            $('#historialTable').on('click', 'a', mostrarSpinner);
+            $('.botones-filtro a').on('click', mostrarSpinner);
+
+            // Al volver con el botón "atrás" la página puede restaurarse desde caché
+            $(window).on('pageshow', function() {
+                overlay.removeClass('show');
             });
         });
     </script>

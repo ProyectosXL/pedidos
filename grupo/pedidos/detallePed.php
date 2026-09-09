@@ -4,6 +4,7 @@ GrupoSesion::requiereLogin('../../login.php');
 
 $suc = isset($_GET['suc']) ? $_GET['suc'] : '';
 $pedido = isset($_GET['pedido']) ? $_GET['pedido'] : '';
+$talon = isset($_GET['talon']) ? $_GET['talon'] : '';
 $desde = isset($_GET['desde']) ? $_GET['desde'] : '';
 $hasta = isset($_GET['hasta']) ? $_GET['hasta'] : '';
 
@@ -12,8 +13,16 @@ $historial = new HistorialPedido();
 
 $detalles = [];
 if ($pedido && $suc) {
-    $detalles = $historial->traerDetallePedido($pedido, $suc);
+    $detalles = $historial->traerDetallePedido($pedido, $suc, $talon);
 }
+
+$talonMostrado = $talon !== '' ? $talon : ($detalles[0]['TALON_PED'] ?? '');
+$tipoPedido = $talonMostrado !== '' ? HistorialPedido::tipoDePedido($talonMostrado) : '';
+$tipoClases = [
+    'Distribución' => 'badge-distribucion',
+    'Reposición'   => 'badge-reposicion',
+    'Rotación'     => 'badge-rotacion',
+];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -86,6 +95,52 @@ if ($pedido && $suc) {
             margin-bottom: 1rem;
             font-weight: 600;
         }
+        .badge-tipo {
+            padding: 0.4em 0.8em;
+            font-size: 0.75em;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .badge-reposicion {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .badge-distribucion {
+            background-color: #6610f2;
+            color: white;
+        }
+        .badge-rotacion {
+            background-color: #fd7e14;
+            color: white;
+        }
+        .badge-otro {
+            background-color: #6c757d;
+            color: white;
+        }
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background-color: rgba(255, 255, 255, 0.75);
+            align-items: center;
+            justify-content: center;
+        }
+        #loadingOverlay.show {
+            display: flex;
+        }
+        #loadingOverlay .loading-box {
+            background-color: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.12);
+            text-align: center;
+        }
+        #loadingOverlay .loading-text {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            color: #495057;
+        }
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -112,13 +167,28 @@ if ($pedido && $suc) {
         }
     </style>
 </head>
-<body>	
+<body>
+
+    <div id="loadingOverlay">
+        <div class="loading-box">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <div class="loading-text">Consultando pedidos, aguarde un momento...</div>
+        </div>
+    </div>
 
     <div class="fixed-header">
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="page-title mb-0">
                     <i class="fas fa-file-invoice"></i> Detalle de Pedido: <?= htmlspecialchars($pedido) ?>
+                    <?php if ($tipoPedido): ?>
+                        <span class="badge badge-tipo <?= $tipoClases[$tipoPedido] ?? 'badge-otro' ?>"
+                              title="Talonario <?= (int)$talonMostrado ?>">
+                            <?= htmlspecialchars($tipoPedido) ?>
+                        </span>
+                    <?php endif; ?>
                 </h1>
                 <div class="action-buttons">
                     <?php 
@@ -197,5 +267,19 @@ if (empty($detalles)) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var overlay = $('#loadingOverlay');
+
+            // Volver al historial vuelve a consultar la base y demora
+            $('.action-buttons a').on('click', function() {
+                overlay.addClass('show');
+            });
+
+            $(window).on('pageshow', function() {
+                overlay.removeClass('show');
+            });
+        });
+    </script>
 </body>
 </html>
