@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(\\(Get-Command php -ErrorAction SilentlyContinue\\).Source; Test-Path V:\\\\xampp\\\\php\\\\php.exe; Get-ChildItem C:\\\\xampp\\\\php\\\\php.exe, C:\\\\php\\\\php.exe -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "PowerShell(& C:\\\\xampp\\\\php\\\\php.exe \"C:\\\\Users\\\\SANTOS~1.GAR\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\v--pedidos\\\\1a9bd82c-bbb6-40aa-a231-90d70e323eb1\\\\scratchpad\\\\leer_sp.php\")",
+      "PowerShell(& C:\\\\xampp\\\\php\\\\php.exe -l V:\\\\pedidos\\\\class\\\\CrearPedido.php)",
+      "PowerShell(& C:\\\\xampp\\\\php\\\\php.exe -l V:\\\\pedidos\\\\grupo\\\\pedidos\\\\cargarPedidoNuevoCordoba.php)",
+      "PowerShell(& C:\\\\xampp\\\\php\\\\php.exe \"C:\\\\Users\\\\SANTOS~1.GAR\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\v--pedidos\\\\1a9bd82c-bbb6-40aa-a231-90d70e323eb1\\\\scratchpad\\\\test_comprometer.php\")"
+    ]
+  }
+}

@@ -57,11 +57,6 @@ function mostrarAvisoPedidoYRedirigir(string $tipo, string $titulo, string $text
     exit;
 }
 
-$comprometerStockPath = $_SERVER['DOCUMENT_ROOT'] . '/Controlador/comprometer_stock.php';
-if (is_file($comprometerStockPath)) {
-    require_once $comprometerStockPath;
-}
-
 $sucursalObj = new Sucursal();
 $db = GrupoSesion::obtenerBaseDatos();
 $resolucion = $sucursalObj->construirSucursalesActivasParaPedido($db);
@@ -107,7 +102,7 @@ $crearPedido = new CrearPedido($db);
 $resultado = $crearPedido->crearMultiplesGrupo($pedidos, [
     'tipo'                => $tipo,
     'depo'                => $depo,
-    'comprometer_stock'   => function_exists('comp_stock'),
+    'comprometer_stock'   => true,
 ]);
 
 if (!$resultado['success']) {

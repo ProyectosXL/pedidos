@@ -481,8 +481,8 @@ class CrearPedido
             if (!$esKit) {
                 $this->insertarRenglonSimple($codClient, $codArticu, $cantArt, $numPed, $nroRenglon, $idGva21);
                 $nroRenglon++;
-                if ($comprometerStock && function_exists('comp_stock')) {
-                    comp_stock($cantArt, $codArticu, $depo);
+                if ($comprometerStock) {
+                    $this->comprometerStock($cantArt, $codArticu, $depo);
                 }
             } else {
                 $nroRenglon = $this->insertarRenglonKit(
@@ -610,12 +610,38 @@ class CrearPedido
             ]);
             $nroRenglon++;
 
-            if ($comprometerStock && function_exists('comp_stock')) {
-                comp_stock($cantInsumo, $codInsumo, $depo);
+            if ($comprometerStock) {
+                $this->comprometerStock($cantInsumo, $codInsumo, $depo);
             }
         }
 
         return $nroRenglon;
+    }
+
+    /**
+     * Suma la cantidad a STA19.CANT_COMP (SJ_COMP_STOCK) usando la conexión actual.
+     * Si falla, registra el error y sigue: el pedido ya está insertado.
+     *
+     * @param int|float $cantidad
+     */
+    private function comprometerStock($cantidad, string $codArticu, string $depo): bool
+    {
+        $stmt = sqlsrv_query(
+            $this->cid,
+            'EXEC SJ_COMP_STOCK ?, ?, ?',
+            [(int) $cantidad, $codArticu, $depo]
+        );
+
+        if ($stmt === false) {
+            $detalle = Conexion::formatearErroresSqlsrv(sqlsrv_errors(SQLSRV_ERR_ERRORS));
+            $mensaje = "SJ_COMP_STOCK falló art:$codArticu cant:$cantidad depo:$depo — $detalle";
+            $this->log($mensaje);
+            error_log('[CrearPedido] ' . $mensaje);
+            return false;
+        }
+
+        sqlsrv_free_stmt($stmt);
+        return true;
     }
 
     private function aplicarLimitesCantidad(int $cantArt, string $rubro, float $stock): int
