@@ -738,6 +738,7 @@ class Sucursal {
                 'nombre'         => $nombre,
                 'codClient'      => $s['codClient'] ?? '',
                 'nombreCompleto' => $nombre,
+                'sinConexion'    => !empty($s['sinConexion']),
             ];
         }
 

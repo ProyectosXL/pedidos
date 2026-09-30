@@ -158,7 +158,8 @@ include_once __DIR__.'/../../class/pedido.php';
                         <th></th>
                         <th data-col="precio">PRECIO</th>
                         <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
-                            <th colspan="3" class="sucursal-header" data-suc="<?= $suc ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['codClient'] . ' — ' . $info['nombreCompleto'] . ' (Suc. ' . $suc . ')') ?>"><?= htmlspecialchars($info['nombreCorto']) ?></th>
+                            <?php $sinConexionSuc = !empty($info['sinConexion']); ?>
+                            <th colspan="3" class="sucursal-header<?= $sinConexionSuc ? ' sucursal-sin-conexion' : '' ?>" data-suc="<?= $suc ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($info['codClient'] . ' — ' . $info['nombreCompleto'] . ' (Suc. ' . $suc . ')' . ($sinConexionSuc ? ' · Sin conexión con el local: stock y ventas no disponibles. Podés cargar el pedido igual.' : '')) ?>"><?= htmlspecialchars($info['nombreCorto']) ?><?php if ($sinConexionSuc): ?> <span class="badge-sin-conexion"><i class="fas fa-wifi"></i> SIN CONEXIÓN</span><?php endif; ?></th>
                         <?php endforeach; ?>
                     </tr>
                     <tr>
@@ -212,8 +213,13 @@ include_once __DIR__.'/../../class/pedido.php';
                             <td id="precio" data-col="precio" data-precio-raw="<?= (int)($v['PRECIO'] ?? 0) ?>">$ <?= number_format((int)($v['PRECIO'] ?? 0), 0, ',', '.') ?></td>
 
                             <?php foreach ($sucursalesActivasInfo as $suc => $info): ?>
+                                <?php if (!empty($info['sinConexion'])): ?>
+                                <td class="stock-column sin-dato">—</td>
+                                <td class="sin-dato">—</td>
+                                <?php else: ?>
                                 <td class="stock-column"><?= (int)($v[$suc . '_STOCK'] ?? 0) ?></td>
                                 <td><?= (int)($v[$suc . '_VENDIDO'] ?? 0) ?></td>
+                                <?php endif; ?>
                                 <td><input type="text" inputmode="numeric" name="cantPed_<?= $suc ?>[]" value="0" onkeyup="total();precioTotal()" onblur="validarInputCantidad(this)" size="1" tabindex="1" class="form-control form-control-sm pedido-input <?= $info['codClient'] ?>"></td>
                             <?php endforeach; ?>
                         </tr>

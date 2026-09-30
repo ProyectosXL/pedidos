@@ -13,12 +13,17 @@
                     <p class="mb-3"><?= htmlspecialchars($cargaPedidoError) ?></p>
                 <?php endif; ?>
                 <?php if (!empty($sucursalesConexionFallidas)): ?>
-                    <p>No se pudo conectar con las siguientes sucursales del grupo. El pedido continuará solo con las sucursales disponibles:</p>
+                    <p>No se pudo conectar con las siguientes sucursales del grupo. Las marcadas como <span class="badge bg-secondary">SIN CONEXIÓN</span> aparecen igual en la carga de pedido, sin datos de stock ni ventas del local:</p>
                     <ul class="list-group">
                         <?php foreach ($sucursalesConexionFallidas as $fallo): ?>
                             <li class="list-group-item">
                                 <strong><?= htmlspecialchars($fallo['nombre'] ?? '') ?></strong>
                                 (Nº <?= htmlspecialchars((string) ($fallo['numero'] ?? '')) ?>)
+                                <?php if (!empty($fallo['sinConexion'])): ?>
+                                    <span class="badge bg-secondary ms-1">SIN CONEXIÓN · se puede pedir</span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger ms-1">No disponible para pedir</span>
+                                <?php endif; ?>
                                 <br>
                                 <small class="text-muted"><?php
                                     $tipoFallo = (string) ($fallo['tipo'] ?? '');

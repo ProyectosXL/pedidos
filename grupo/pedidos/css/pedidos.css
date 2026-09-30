@@ -63,6 +63,25 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* Sucursal sin conexión: se puede pedir, pero sin stock/ventas del local */
+#id_tabla thead th.sucursal-header.sucursal-sin-conexion {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+.badge-sin-conexion {
+    display: block;
+    font-size: 0.65em;
+    font-weight: 700;
+    color: #fff;
+    background-color: #6c757d;
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-top: 2px;
+}
+#id_tabla td.sin-dato {
+    color: #adb5bd;
+    text-align: center;
+}
 .table-fixed-header {
     position: sticky;
     top: 0;

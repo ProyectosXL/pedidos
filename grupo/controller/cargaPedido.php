@@ -71,6 +71,25 @@ function registrarIntentoConexionSesion(int $suc, string $nombre, array $conexio
 }
 
 /**
+ * Agrega la sucursal a la lista de activas de la matriz de pedido.
+ * $sinConexion = true: el local no respondió; se muestra su columna sin stock/ventas
+ * para poder cargarle pedido igual (el alta del pedido corre sobre central).
+ */
+function agregarSucursalActiva(array &$activas, array &$info, int $suc, string $nombre, string $dsn, string $codClient, bool $sinConexion) {
+	$sucStr = (string) $suc;
+	if (in_array($sucStr, $activas, true)) {
+		return;
+	}
+	$activas[] = $sucStr;
+	$info[$sucStr] = [
+		'dsn'         => $dsn,
+		'nombre'      => $nombre,
+		'codClient'   => $codClient,
+		'sinConexion' => $sinConexion,
+	];
+}
+
+/**
  * Inserta filas en SOF_PEDIDOS_CARGA_LOPEZ en lotes de 200 (límite SQL Server ~2100 params).
  * @param resource $cidCentral
  * @param array<int, array{num_suc: int, cod_articu: string, cant_stock: float, cant_vend: float}> $filas
@@ -207,6 +226,7 @@ foreach ($sucursalesGrupo as $sucRaw) {
 		? trim((string) $infoPorNumero[$suc]['NOM_COM'])
 		: ('Sucursal ' . $suc);
 	$dsn = isset($infoPorNumero[$suc]['DSN']) ? $infoPorNumero[$suc]['DSN'] : '';
+	$codClientSuc = isset($infoPorNumero[$suc]['COD_CLIENT']) ? trim((string) $infoPorNumero[$suc]['COD_CLIENT']) : '';
 
 	echo '<script>document.getElementById("status").textContent = ' . json_encode(
 		'Conectando ' . $nombre . ' (' . $procesadas . ' / ' . $totalSucursales . ')'
@@ -263,10 +283,14 @@ foreach ($sucursalesGrupo as $sucRaw) {
 			'conexion',
 			$motivoAmigable,
 			[
-				'detalle'  => $errorSql !== '' ? $errorSql : 'sqlsrv_connect devolvió false sin mensaje',
-				'conexion' => $detalleConexion,
+				'detalle'     => $errorSql !== '' ? $errorSql : 'sqlsrv_connect devolvió false sin mensaje',
+				'conexion'    => $detalleConexion,
+				'sinConexion' => $codClientSuc !== '',
 			]
 		);
+		if ($codClientSuc !== '') {
+			agregarSucursalActiva($sucursalesActivas, $sucursalesInfo, $suc, $nombre, $dsn, $codClientSuc, true);
+		}
 		continue;
 	}
 
@@ -289,8 +313,9 @@ foreach ($sucursalesGrupo as $sucRaw) {
 			'consulta_stock',
 			$motivoAmigable,
 			[
-				'detalle'  => $errorSql,
-				'conexion' => $detalleConexion,
+				'detalle'     => $errorSql,
+				'conexion'    => $detalleConexion,
+				'sinConexion' => $codClientSuc !== '',
 			]
 		);
 		registrarIntentoConexionSesion($suc, $nombre, $detalleConexion, false, [
@@ -299,18 +324,13 @@ foreach ($sucursalesGrupo as $sucRaw) {
 			'detalle' => $errorSql,
 		]);
 		sqlsrv_close($cid);
+		if ($codClientSuc !== '') {
+			agregarSucursalActiva($sucursalesActivas, $sucursalesInfo, $suc, $nombre, $dsn, $codClientSuc, true);
+		}
 		continue;
 	}
 
-	$sucStr = (string) $suc;
-	if (!in_array($sucStr, $sucursalesActivas, true)) {
-		$sucursalesActivas[] = $sucStr;
-		$sucursalesInfo[$sucStr] = [
-			'dsn' => $dsn,
-			'nombre' => $nombre,
-			'codClient' => isset($infoPorNumero[$suc]['COD_CLIENT']) ? $infoPorNumero[$suc]['COD_CLIENT'] : '',
-		];
-	}
+	agregarSucursalActiva($sucursalesActivas, $sucursalesInfo, $suc, $nombre, $dsn, $codClientSuc, false);
 
 	$filasSucursal = [];
 	while ($v = sqlsrv_fetch_array($result1, SQLSRV_FETCH_ASSOC)) {
@@ -346,6 +366,8 @@ if ($errorFatal !== null) {
 	$_SESSION['carga_pedido_error'] = $errorFatal;
 } elseif (empty($sucursalesActivas)) {
 	$_SESSION['carga_pedido_error'] = 'No se pudo conectar con ninguna sucursal del grupo empresario.';
+} elseif (empty(array_filter($sucursalesInfo, function ($s) { return empty($s['sinConexion']); }))) {
+	$_SESSION['carga_pedido_error'] = 'No se pudo conectar con ninguna sucursal del grupo empresario. Podés cargar el pedido igual, sin datos de stock ni ventas de los locales.';
 }
 
 $_SESSION['sucursales_activas'] = $sucursalesActivas;
