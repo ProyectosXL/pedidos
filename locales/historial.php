@@ -1,10 +1,10 @@
 <?php
 session_start();
 if(!isset($_SESSION['username'])) {
-    header("Location:login.php");
+    header("Location:../../sistemas/login.php");
     exit();
 }
-require_once __DIR__.'/../class/pedido.php';
+require_once __DIR__.'/class/pedido.php';
 
 // Inicialización
 $pedido = new Pedido();

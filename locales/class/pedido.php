@@ -107,22 +107,41 @@ class Pedido {
 
 
 
-        $sql=
-        "
-        SET DATEFORMAT YMD
+        if ($usuarioUy == 1) {
+            $sql =
+            "
+            SET DATEFORMAT YMD
 
-        SELECT CAST(FECHA_PEDI AS DATE)FECHA, B.TALON_PED, A.NRO_PEDIDO, LEYENDA_1, B.CANT FROM GVA21 A
-        INNER JOIN
-        (
-            SELECT NRO_PEDIDO, TALON_PED, CAST(SUM(CANT_PEDID) AS FLOAT) CANT FROM GVA03 WHERE TALON_PED IN ($talonarios) GROUP BY NRO_PEDIDO, TALON_PED
-        )B
-        ON A.NRO_PEDIDO = B.NRO_PEDIDO AND A.TALON_PED = B.TALON_PED
-        WHERE COD_CLIENT = '$codClient' AND FECHA_PEDI > (GETDATE()-42) AND A.TALON_PED IN ($talonarios)
-        ORDER BY 1 desc, 2 desc
+            SELECT CAST(FECHA_PEDI AS DATE)FECHA, B.TALON_PED, A.NRO_PEDIDO, LEYENDA_1, B.CANT, B.CANT_PEND, NULL AS FECHA_FIN_PICKING FROM GVA21 A
+            INNER JOIN
+            (
+                SELECT ID_GVA21, TALON_PED, NRO_PEDIDO, CAST(SUM(CANT_PEDID) AS FLOAT) CANT, CAST(SUM(CANT_PEN_D) AS FLOAT) CANT_PEND FROM GVA03
+                WHERE TALON_PED IN ($talonarios) GROUP BY ID_GVA21, TALON_PED, NRO_PEDIDO
+            )B
+            ON A.ID_GVA21 = B.ID_GVA21
+            WHERE COD_CLIENT = '$codClient' AND FECHA_PEDI > (GETDATE()-42) AND A.TALON_PED IN ($talonarios)
+            AND A.ESTADO != 5
+            ORDER BY 1 desc, 2 desc
+            ";
+        } else {
+            $sql =
+            "
+            SET DATEFORMAT YMD
 
-        ";
-            
-   
+            SELECT CAST(FECHA_PEDI AS DATE)FECHA, A.HORA_INGRESO, B.TALON_PED, A.NRO_PEDIDO, LEYENDA_1, B.CANT, B.CANT_PEND, C.FECHA_FIN_PICKING FROM GVA21 A
+            INNER JOIN
+            (
+                SELECT ID_GVA21, TALON_PED, NRO_PEDIDO, CAST(SUM(CANT_PEDID) AS FLOAT) CANT, CAST(SUM(CANT_PEN_D) AS FLOAT) CANT_PEND FROM GVA03
+                WHERE TALON_PED IN ($talonarios) GROUP BY ID_GVA21, TALON_PED, NRO_PEDIDO
+            )B
+            ON A.ID_GVA21 = B.ID_GVA21
+            LEFT JOIN RO_V_PEDIDOS_PICKEADOS_SUCURSALES C ON A.NRO_PEDIDO = C.NRO_PEDIDO
+            WHERE COD_CLIENT = '$codClient' AND FECHA_PEDI > (GETDATE()-42) AND A.TALON_PED IN ($talonarios)
+            AND A.ESTADO != 5
+            ORDER BY FECHA_PEDI DESC, A.NRO_PEDIDO DESC
+            ";
+        }
+
         try {
             $stmt = sqlsrv_query($cid, $sql);
             $v = [];
