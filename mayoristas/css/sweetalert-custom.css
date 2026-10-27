@@ -1,0 +1,41 @@
+/* Estilos personalizados para SweetAlert2 */
+
+.btn-confirm-pedido, 
+.btn-cancel-pedido {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+}
+
+.btn-confirm-pedido {
+    background: #28a745;
+    color: white;
+}
+
+.btn-confirm-pedido:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-cancel-pedido {
+    background: #dc3545;
+    color: white;
+    margin-right: 10px;
+}
+
+.btn-cancel-pedido:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.swal-actions-spacing {
+    gap: 15px !important;
+    display: flex !important;
+    justify-content: center !important;
+}

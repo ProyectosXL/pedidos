@@ -1,0 +1,346 @@
+/* Detalle Pedido CSS - Estilos específicos para vista de detalle de pedido */
+
+/* Pedido Info Card */
+.pedido-info-card {
+    background: linear-gradient(135deg, var(--secondary-color), #2980b9);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    margin-bottom: 25px;
+}
+
+.info-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 25px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: var(--white);
+}
+
+.info-item i {
+    font-size: 2rem;
+    opacity: 0.9;
+}
+
+.info-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.info-label {
+    font-size: 0.8rem;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Summary Card */
+.summary-card {
+    background: var(--white);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+}
+
+.summary-card h3 {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 8px;
+}
+
+.summary-icon {
+    font-size: 2rem;
+    color: var(--secondary-color);
+    opacity: 0.8;
+}
+
+.summary-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-label {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+/* Table Card */
+.table-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 2px solid var(--light-bg);
+}
+
+.table-header h3 {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Detail Table */
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.detail-table thead {
+    background: var(--light-bg);
+}
+
+.detail-table th {
+    padding: 15px 20px;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-table th.text-center {
+    text-align: center;
+}
+
+.detail-table tbody tr {
+    border-bottom: 1px solid var(--light-bg);
+    transition: all 0.2s ease;
+}
+
+.detail-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.detail-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.detail-table td {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.detail-table td.text-center {
+    text-align: center;
+}
+
+/* Codigo Producto */
+.codigo-producto {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--secondary-color);
+    background: rgba(52, 152, 219, 0.1);
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Numero de Fila */
+.numero-fila {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background: var(--light-bg);
+    border-radius: 50%;
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 0.9rem;
+}
+
+/* Cantidad Badge */
+.cantidad-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    height: 50px;
+    background: var(--light-bg);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-dark);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--text-light);
+    opacity: 0.3;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.empty-state h3 {
+    color: var(--text-dark);
+    font-size: 1.4rem;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    font-size: 1rem;
+}
+
+/* Print Styles */
+@media print {
+    .header-actions,
+    .btn {
+        display: none !important;
+    }
+    
+    .pedido-info-card {
+        background: #f8f9fa !important;
+        color: #333 !important;
+        border: 1px solid #ddd;
+    }
+    
+    .info-item {
+        color: #333 !important;
+    }
+    
+    .table-header .btn {
+        display: none;
+    }
+    
+    body {
+        background: white;
+    }
+    
+    .main-container {
+        max-width: 100%;
+        padding: 0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .info-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .detail-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .detail-table thead {
+        display: none;
+    }
+    
+    .detail-table tbody,
+    .detail-table tr,
+    .detail-table td {
+        display: block;
+    }
+    
+    .detail-table tr {
+        margin-bottom: 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    .detail-table td {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--light-bg);
+        position: relative;
+        padding-left: 50%;
+    }
+    
+    .detail-table td:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-table td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-right: 10px;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    
+    .pedido-info-card {
+        padding: 20px;
+    }
+    
+    .info-item i {
+        font-size: 1.5rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+    }
+}
