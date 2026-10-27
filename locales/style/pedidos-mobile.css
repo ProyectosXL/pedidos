@@ -1,0 +1,1217 @@
+/* =====================================================
+   pedidos-mobile.css — Vista celular de pedidos.php
+   Todo lo visual vive dentro de la media query de abajo, para que el escritorio
+   se vea exactamente igual. Va en un archivo aparte (y no en pedidos.css o
+   carrito.css) porque esos también los carga carrito.php.
+   El tramo horizontal (celular girado) pide pointer: coarse para que una ventana
+   de escritorio baja no lo active. La misma condición está en MQ_CELULAR (pedidos.js).
+   ===================================================== */
+
+/* Elementos nuevos que solo existen para el celular: en escritorio no se ven */
+.m-only {
+    display: none;
+}
+
+/* La sugerencia pasó de <span> a <button> (accesible con teclado). Este reset le quita
+   lo que agrega el navegador a los botones, así en escritorio se ve igual que antes. */
+button.sugerencia-badge {
+    font-family: inherit;
+    line-height: inherit;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Totales del panel del carrito: el span agrupa etiqueta y valor para el celular, pero en
+   escritorio "desaparece" y sus hijos quedan como antes, directo en la fila flex. */
+.cp-total {
+    display: contents;
+}
+
+@media (max-width: 767.98px), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+
+    .m-hide {
+        display: none;
+    }
+
+    .m-inline {
+        display: inline;
+    }
+
+    /* ── Encabezado compacto ─────────────────────────────────────────────── */
+    .header-container {
+        margin: 0;
+        border-radius: 0;
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        transition: transform 250ms ease;
+    }
+
+    /* El extra de 12px esconde también la sombra, que si no queda como una franja arriba */
+    .header-container.m-header-hidden {
+        transform: translateY(calc(-100% - 12px));
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .header-container {
+            transition: none;
+        }
+    }
+
+    .header-top {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        text-align: left;
+    }
+
+    .logo-section {
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 4px;
+        justify-content: flex-start;
+    }
+
+    .logo-section img {
+        display: none;
+    }
+
+    .m-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--primary-color);
+        font-size: 1.15rem;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .m-icon-btn:active {
+        background: #eef1f5;
+    }
+
+    .welcome-text {
+        min-width: 0;
+    }
+
+    .welcome-text h1 {
+        font-size: 17px;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .welcome-text .info-text {
+        display: none;
+    }
+
+    .m-subtitle {
+        display: block;
+        margin: 1px 0 0;
+        font-size: 12px;
+        line-height: 1.3;
+        color: #4b5563;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-center {
+        display: none;
+    }
+
+    .header-actions {
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+    }
+
+    /* Inicio, Exportar y el ícono de conexión pasan al botón casa y al menú ⋮ */
+    .header-actions > .btn {
+        display: none;
+    }
+
+    .btn-cart {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        padding: 0;
+        border-radius: 10px;
+    }
+
+    /* ── Menú ⋮ ──────────────────────────────────────────────────────────── */
+    .m-menu-wrap {
+        display: block;
+        position: relative;
+    }
+
+    .m-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        z-index: 300;
+        width: min(280px, calc(100vw - 24px));
+        padding: 6px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Sin esto, cualquier display de arriba le ganaría al atributo hidden */
+    .m-menu[hidden] {
+        display: none;
+    }
+
+    .m-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 44px;
+        padding: 0 12px;
+        border: none;
+        border-radius: 8px;
+        background: none;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        color: #1f2937;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .m-menu-item:active {
+        background: #f3f4f6;
+    }
+
+    .m-menu-item i {
+        width: 18px;
+        color: #1f6fb2;
+    }
+
+    .m-menu-status {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 6px;
+        padding: 10px 12px 6px;
+        border-top: 1px solid #e5e7eb;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #374151;
+    }
+
+    .m-menu-status i {
+        margin-top: 2px;
+    }
+
+    .m-status-ok i    { color: #0c5460; }
+    .m-status-warn i  { color: #856404; }
+    .m-status-error i { color: #b91c1c; }
+
+    .m-menu-status-detalle {
+        margin-top: 4px;
+        font-size: 11px;
+        color: #4b5563;
+        overflow-wrap: anywhere;
+    }
+
+    /* ── Buscador, rubro y orden (pedidos-mobile.js los mete en el encabezado) ── */
+    .header-container .filters-bar {
+        margin: 0;
+        padding: 0 12px 10px;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .filters-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .filters-grid .search-wrapper {
+        grid-column: 1 / -1;
+    }
+
+    /* Los totales ya están en la barra de abajo y "Limpiar filtros" está en el menú ⋮ */
+    .filters-grid .totals-display,
+    #btnClear {
+        display: none;
+    }
+
+    /* 16px evita el zoom automático de iOS al enfocar */
+    #searchProduct {
+        height: 44px;
+        padding: 0 12px 0 40px;
+        font-size: 16px;
+    }
+
+    #filterRubro,
+    #sortProducts {
+        width: 100%;
+        min-width: 0;
+        height: 44px;
+        padding: 0 8px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background-color: #fff;
+        font-size: 16px;
+        color: var(--text-dark);
+    }
+
+    #filterRubro  { grid-column: 1; grid-row: 2; }
+    #sortProducts { grid-column: 2; grid-row: 2; }
+
+    /* ── Contenido: chips y banner arriba de los destacados ─────────────── */
+    .main-container {
+        display: flex;
+        flex-direction: column;
+        padding: 10px max(12px, env(safe-area-inset-right)) calc(var(--m-footer-h, 72px) + 16px) max(12px, env(safe-area-inset-left));
+    }
+
+    .rubro-filter-section {
+        display: none;
+    }
+
+    #activeFilters        { order: 1; }
+    #stockWarningBanner   { order: 2; }
+    .suggestions-section  { order: 3; }
+    #formPedido           { order: 4; }
+
+    .active-filters {
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 12px;
+    }
+
+    .filters-label {
+        font-size: 12px;
+    }
+
+    /* #3498db no llega a AA con texto blanco */
+    .filter-chip {
+        padding: 2px 2px 2px 12px;
+        background: #1f6fb2;
+        font-size: 13px;
+    }
+
+    /* Agranda la X del chip a un blanco táctil razonable sin cambiar el alto del chip */
+    .filter-chip .fa-times {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+    }
+
+    .stock-warning-banner {
+        align-items: flex-start;
+        font-size: 14px;
+    }
+
+    /* ── Destacados: fila deslizable ─────────────────────────────────────── */
+    .suggestions-section {
+        margin-bottom: 12px;
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .suggestions-header {
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .suggestions-header h3 {
+        font-size: 16px;
+    }
+
+    .suggestion-tabs {
+        width: 100%;
+        gap: 8px;
+    }
+
+    .suggestion-tabs .tab-btn {
+        flex: 1 1 0;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 10px;
+        font-size: 14px;
+    }
+
+    .suggestion-tabs .tab-btn:hover {
+        transform: none;
+    }
+
+    .suggestion-tabs .tab-btn.active {
+        background: #1f6fb2;
+        border-color: #1f6fb2;
+        color: #fff;
+    }
+
+    .suggestions-carousel-wrapper {
+        padding: 0;
+    }
+
+    .carousel-btn,
+    .carousel-indicators {
+        display: none;
+    }
+
+    .suggestions-carousel {
+        display: flex;
+        gap: 10px;
+        padding: 2px 2px 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .suggestions-carousel::-webkit-scrollbar {
+        display: none;
+    }
+
+    .carousel-item {
+        flex: 0 0 132px;
+        min-height: 0;
+        max-height: none;
+        padding: 8px;
+        border-width: 1px;
+        scroll-snap-align: start;
+    }
+
+    .carousel-item:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: var(--border-color);
+    }
+
+    .carousel-item img {
+        height: 100px;
+    }
+
+    .carousel-item img:hover {
+        transform: none;
+    }
+
+    /* La tarjeta muestra solo foto, descripción y código */
+    .carousel-item .carousel-badge,
+    .carousel-item .product-stock,
+    .carousel-item .bottom-row {
+        display: none;
+    }
+
+    .carousel-item .content-wrapper {
+        text-align: left;
+    }
+
+    .carousel-item .product-name {
+        order: 1;
+        min-height: 0;
+        max-height: none;
+        margin-bottom: 2px;
+        font-size: 13px;
+    }
+
+    .carousel-item .product-code {
+        order: 2;
+        margin: 0;
+        font-size: 11px;
+        color: #4b5563;
+        overflow-wrap: anywhere;
+    }
+
+    /* ── Encabezado del listado ──────────────────────────────────────────── */
+    .product-table-container {
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .product-table-header {
+        padding: 0 2px 4px;
+        background: none;
+        color: var(--text-dark);
+    }
+
+    .product-table-title,
+    .product-table-header .item-count {
+        display: none;
+    }
+
+    .m-list-count {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .m-link-btn {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 4px 0 12px;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f6fb2;
+        cursor: pointer;
+    }
+
+    /* ── Card de artículo: el mismo <tr>, en grilla de 3 columnas ─────────── */
+    .product-table,
+    .product-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .product-table thead {
+        display: none;
+    }
+
+    /* Sin row-gap: las filas de la grilla que quedan vacías (Ver más cerrado) no suman espacio */
+    .product-table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        column-gap: 8px;
+        row-gap: 0;
+        position: relative;
+        margin-bottom: 10px;
+        padding: 12px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+        scroll-margin-top: calc(var(--m-header-h, 160px) + 12px);
+        scroll-margin-bottom: calc(var(--m-footer-h, 72px) + 12px);
+    }
+
+    .product-table tbody tr:hover {
+        transform: none;
+        background: #fff;
+    }
+
+    .product-table td {
+        display: block;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        font-size: 14px;
+        text-align: left;
+    }
+
+    /* Fila de "No hay productos" */
+    .product-table td[colspan] {
+        grid-column: 1 / -1;
+        text-align: center;
+    }
+
+    /* Fila superior: la foto ocupa las dos primeras filas y el texto se corre 88px.
+       Código y descripción abarcan todo el ancho para no depender de un ancho fijo de columna. */
+    .product-table td.product-image-cell {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        align-self: start;
+        width: 76px;
+        min-width: 0;
+        position: relative;
+        z-index: 1; /* por encima del padding de código/descripción, para que el toque llegue a la foto */
+    }
+
+    .product-table .product-image {
+        width: 76px;
+        height: 76px;
+        border-radius: 10px;
+    }
+
+    .product-table .product-image:hover {
+        transform: none;
+    }
+
+    .product-table td.td-codigo {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        padding-left: 88px;
+    }
+
+    .td-codigo .product-code {
+        font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
+        font-size: 12px;
+        color: #1f6fb2;
+        overflow-wrap: anywhere;
+    }
+
+    .product-table tr.row-sin-stock .td-codigo .product-code {
+        color: #b91c1c;
+    }
+
+    .product-table td.td-desc {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        padding-left: 88px;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.3;
+        color: #1f2937;
+        overflow-wrap: anywhere;
+    }
+
+    .td-desc .sale-badge {
+        margin-left: 4px;
+        vertical-align: 1px;
+    }
+
+    .m-tag {
+        display: inline-block;
+        margin-left: 4px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.4;
+        vertical-align: 1px;
+    }
+
+    .m-tag-top { background: #fde2e1; color: #9b1c1c; }
+    .m-tag-new { background: #fef3c7; color: #92400e; }
+
+    /* En la card los íconos 🔥/✨ se reemplazan por las etiquetas de texto */
+    .product-table .sales-badge {
+        display: none;
+    }
+
+    /* Fila de datos: casilleros grises con la etiqueta arriba */
+    .product-table td.td-stock-central,
+    .product-table td.td-stock-local,
+    .product-table td.td-ventas {
+        grid-row: 3;
+        margin-top: 10px;
+        padding: 6px 8px;
+        background: #f3f4f6;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .product-table td.td-stock-central { grid-column: 1; }
+    .product-table td.td-stock-local   { grid-column: 2; }
+    .product-table td.td-ventas        { grid-column: 3; }
+
+    /* Perfiles sin stock local ni ventas: el casillero que queda ocupa todo el ancho */
+    .product-table.m-casilleros-1 td.td-stock-central { grid-column: 1 / -1; }
+    .product-table.m-casilleros-2 td.td-stock-local,
+    .product-table.m-casilleros-2 td.td-ventas        { grid-column: 2 / -1; }
+
+    /* El contenedor del badge trae justify-content: center en línea */
+    .td-stock-central > div {
+        justify-content: flex-start !important;
+    }
+
+    .product-table td.td-stock-central::before,
+    .product-table td.td-stock-local::before,
+    .product-table td.td-ventas::before,
+    .product-table td.td-precio::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 2px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #4b5563;
+    }
+
+    .product-table td .stock-badge {
+        padding: 2px 8px;
+        font-size: 14px;
+    }
+
+    /* Fila inferior: precio a la izquierda, cantidad a la derecha */
+    .product-table td.td-precio {
+        grid-column: 1;
+        grid-row: 4;
+        align-self: center;
+        margin-top: 12px;
+        white-space: nowrap;
+    }
+
+    /* El verde de escritorio (#27ae60) no llega a AA sobre blanco */
+    .td-precio .price-display {
+        font-size: 18px;
+        color: #1d7a43;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .product-table td.td-cantidad {
+        grid-column: 2 / -1;
+        grid-row: 4;
+        align-self: center;
+        justify-self: end;
+        margin-top: 12px;
+    }
+
+    /* Sin precio (locales propios): la cantidad sigue alineada a la derecha */
+    .product-table.m-sin-precio td.td-cantidad {
+        grid-column: 1 / -1;
+    }
+
+    .product-table .qty-actions {
+        gap: 6px;
+    }
+
+    .product-table .qty-btn,
+    .product-table .qty-btn:hover {
+        width: 48px;
+        height: 48px;
+        border: 1px solid #cfd6de;
+        border-radius: 12px;
+        background: #fff;
+        color: #1f2937;
+        font-size: 16px;
+    }
+
+    .product-table .qty-btn.btn-plus,
+    .product-table .qty-btn.btn-plus:hover {
+        border-color: #1e4a70;
+        background: #1e4a70;
+        color: #fff;
+    }
+
+    .product-table .qty-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .product-table .qty-input {
+        width: 56px;
+        height: 48px;
+        padding: 0;
+        border-radius: 10px;
+        font-size: 18px;
+        font-weight: 700;
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    .product-table .qty-input::-webkit-outer-spin-button,
+    .product-table .qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .product-table .qty-input:disabled {
+        background: #f3f4f6;
+    }
+
+    /* "Ver más": rubro, distribución y sugerencia como líneas etiqueta-valor */
+    .product-table td.td-rubro,
+    .product-table td.td-distri,
+    .product-table td.td-sugerencia {
+        display: none;
+        grid-column: 1 / -1;
+    }
+
+    .product-table td.td-rubro      { grid-row: 5; margin-top: 8px; }
+    .product-table td.td-distri     { grid-row: 6; }
+    .product-table td.td-sugerencia { grid-row: 7; }
+
+    .product-table tr.is-expanded td.td-rubro,
+    .product-table tr.is-expanded td.td-distri,
+    .product-table tr.is-expanded td.td-sugerencia {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 44px;
+        padding: 6px 2px;
+        border-top: 1px solid #eef0f2;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .product-table tr.is-expanded td.td-rubro::before,
+    .product-table tr.is-expanded td.td-distri::before,
+    .product-table tr.is-expanded td.td-sugerencia::before {
+        content: attr(data-label);
+        font-size: 13px;
+        font-weight: 500;
+        color: #4b5563;
+    }
+
+    /* "-" y "0" se muestran como "—" */
+    .td-sugerencia .sug-vacia {
+        display: none;
+    }
+
+    .td-sugerencia .sugerencia-badge {
+        min-height: 40px;
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    .product-table td.td-ver-mas {
+        display: block;
+        grid-column: 1 / -1;
+        grid-row: 8;
+        margin-top: 10px;
+    }
+
+    .m-ver-mas {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        min-height: 44px;
+        border: none;
+        border-radius: 10px;
+        background: #f3f4f6;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f6fb2;
+        cursor: pointer;
+    }
+
+    .m-ver-mas i {
+        transition: transform 0.2s ease;
+    }
+
+    .product-table tr.is-expanded .m-ver-mas i {
+        transform: rotate(180deg);
+    }
+
+    /* Estados: con cantidad (azul) y stock insuficiente (rojo, gana al azul) */
+    .product-table tbody tr.has-qty {
+        box-shadow: 0 0 0 2px #1f6fb2, 0 1px 3px rgba(16, 24, 40, 0.08);
+    }
+
+    .product-table tbody tr.qty-error,
+    .product-table tbody tr.row-sin-stock {
+        box-shadow: 0 0 0 2px #dc2626, 0 1px 3px rgba(16, 24, 40, 0.08);
+    }
+
+    .product-table tbody tr.qty-error {
+        background: #fef2f2;
+    }
+
+    /* Celular girado o pantallas de 600px+: dos cards por fila */
+    @media (min-width: 600px) {
+        .product-table tbody {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            column-gap: 10px;
+        }
+    }
+
+    /* ── Aviso de stock (trae estilos en línea desde pedidos.js) ─────────── */
+    #toast-stock {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(var(--m-footer-h, 72px) + 12px) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    #toast-stock > button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin: -12px -14px -12px 0;
+        padding: 0 !important;
+    }
+
+    /* ── Barra de totales fija ───────────────────────────────────────────── */
+    .fixed-footer {
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    .footer-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+    }
+
+    .footer-totals {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+        justify-content: flex-start;
+        gap: 14px;
+    }
+
+    .total-item {
+        gap: 0;
+        min-width: 0;
+    }
+
+    .total-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: #4b5563;
+    }
+
+    .total-value {
+        font-size: 18px;
+        line-height: 1.2;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .total-value.highlight {
+        color: #1f6fb2;
+    }
+
+    .footer-actions {
+        flex: 0 0 auto;
+        width: auto;
+    }
+
+    /* "Limpiar" pasa al encabezado del listado */
+    .footer-actions .btn-clear {
+        display: none;
+    }
+
+    .footer-actions .btn-submit {
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 16px;
+        font-size: 15px;
+        white-space: nowrap;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+        transform: none;
+    }
+
+    /* Pantallas angostas con precio: se saca el ícono para que todo entre en una línea */
+    @media (max-width: 389.98px) {
+        .footer-totals {
+            gap: 10px;
+        }
+
+        .footer-actions .btn-submit {
+            padding: 0 12px;
+        }
+
+        .footer-actions .btn-submit i {
+            display: none;
+        }
+    }
+}
+
+/* =====================================================
+   Panel del carrito (#cartPanel) — pantalla completa en el celular
+   ===================================================== */
+@media (max-width: 767.98px), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+
+    /* Entra desde la derecha como en escritorio, pero ocupa toda la pantalla.
+       bottom: 0 cubre a los navegadores sin soporte de dvh. */
+    .cart-panel {
+        width: 100%;
+        bottom: 0;
+        box-shadow: none;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    .cart-panel-header {
+        padding: calc(8px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+    }
+
+    .cart-panel-header h2 {
+        display: none;
+    }
+
+    .cp-titulo-m {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .cp-titulo-m-principal {
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .cp-titulo-m-tipo {
+        font-size: 13px;
+        line-height: 1.3;
+        color: #dbe4ee;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cart-panel-close {
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        font-size: 1.15rem;
+    }
+
+    /* ── Cada fila es una card ───────────────────────────────────────────── */
+    .cart-panel-body {
+        padding: 12px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left));
+        background: #f3f4f6;
+        overflow-x: hidden;
+    }
+
+    .cart-panel-table,
+    .cart-panel-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .cart-panel-table thead {
+        display: none;
+    }
+
+    /* [foto] [código, descripción, rubro] [quitar] / [cantidad ........ importe] */
+    .cart-panel-table tr {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr) auto;
+        column-gap: 12px;
+        row-gap: 10px;
+        margin-bottom: 10px;
+        padding: 12px;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .cart-panel-table td,
+    .cart-panel-table tr:hover td {
+        display: block;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    .cart-panel-table td.cp-td-img {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+    }
+
+    .cart-panel-table .cart-panel-img,
+    .cart-panel-table td.cp-td-img > div {
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 10px;
+    }
+
+    .cart-panel-table td.cp-td-prod {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .cart-panel-code {
+        font-size: 12px;
+        color: #1f6fb2;
+        overflow-wrap: anywhere;
+    }
+
+    /* La descripción deja de cortarse en 140px: hasta dos líneas */
+    .cart-panel-desc {
+        max-width: none;
+        margin-top: 2px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #1f2937;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .cart-panel-table td.cp-td-rubro {
+        grid-column: 2;
+        grid-row: 2;
+        align-self: start;
+    }
+
+    .cart-panel-rubro {
+        font-size: 11px;
+        white-space: normal;
+    }
+
+    .cart-panel-table td.cp-td-quitar {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: start;
+        margin: -8px -8px 0 0;
+    }
+
+    .btn-remove-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border-radius: 10px;
+        color: #6b7280;
+        font-size: 1.05rem;
+    }
+
+    .btn-remove-item .m-only {
+        display: inline-block;
+    }
+
+    .cart-panel-table td.cp-td-qty {
+        grid-column: 1 / 3;
+        grid-row: 3;
+        align-self: center;
+    }
+
+    .cart-panel-qty {
+        gap: 6px;
+    }
+
+    .cart-panel-qty-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    /* 16px evita el zoom automático de iOS al enfocar */
+    .cart-panel-qty-input {
+        width: 56px;
+        height: 44px;
+        padding: 0;
+        border-radius: 10px;
+        font-size: 16px;
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    .cart-panel-qty-input::-webkit-outer-spin-button,
+    .cart-panel-qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .cart-panel-table td.cp-td-importe {
+        grid-column: 3;
+        grid-row: 3;
+        align-self: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1f2937;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cart-panel-table td.cp-td-importe::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    /* ── Footer fijo: totales, Exportar/Vaciar y Enviar ──────────────────── */
+    .cart-panel-footer {
+        padding: 10px max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        background: #fff;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .cart-panel-totals {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .cart-panel-totals .cp-total,
+    .cart-panel-totals .cp-total-precio {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    /* El JS oculta el total con style="display:none"; eso tiene que seguir ganando */
+    .cart-panel-totals .cp-total-precio[style*="none"] {
+        display: none;
+    }
+
+    .cp-total-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #4b5563;
+    }
+
+    .cart-panel-totals strong {
+        font-size: 18px;
+        line-height: 1.2;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cart-panel-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .cart-panel-actions .btn {
+        min-height: 44px;
+        font-size: 15px;
+    }
+
+    .cart-panel-actions .btn:hover {
+        transform: none;
+    }
+
+    /* El verde y el rojo de escritorio no llegan a AA con estos tamaños de texto */
+    .cart-panel-actions .btn-secondary {
+        background: #1d7a43;
+    }
+
+    .cart-panel-actions .btn-danger-outline {
+        justify-content: center;
+        min-height: 44px;
+        border-color: #c53030;
+        color: #c53030;
+        font-size: 15px;
+    }
+
+    #cartPanelSendBtn {
+        grid-column: 1 / -1;
+        min-height: 52px;
+        background: #1e4a70;
+        font-size: 16px;
+    }
+
+    #cartPanelSendBtn:disabled {
+        opacity: 0.5;
+    }
+}
