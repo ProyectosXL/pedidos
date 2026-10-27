@@ -470,6 +470,35 @@ class PedidoManager {
     }
     
     /**
+     * Recalcula GVA21.TOTAL_PEDI como SUM(CANT_PEDID * PRECIO) de sus renglones en GVA03.
+     * Los componentes de kit (RENGL_PADR > 0) se excluyen: el precio del kit ya está en el renglón padre.
+     * @param int $idGva21
+     * @return bool
+     */
+    public function actualizarTotalPedido($idGva21) {
+        if($this->cid === false){
+            throw new Exception("Error al conectar con la base de datos");
+        }
+        
+        $sql = "UPDATE GVA21
+                SET TOTAL_PEDI = (
+                    SELECT ISNULL(SUM(CANT_PEDID * ISNULL(PRECIO, 0)), 0)
+                    FROM GVA03
+                    WHERE ID_GVA21 = ? AND ISNULL(RENGL_PADR, 0) = 0
+                )
+                WHERE ID_GVA21 = ?";
+        
+        $stmt = sqlsrv_query($this->cid, $sql, array($idGva21, $idGva21));
+        
+        if($stmt === false){
+            throw new Exception("Error al actualizar total del pedido: " . print_r(sqlsrv_errors(), true));
+        }
+        
+        sqlsrv_free_stmt($stmt);
+        return true;
+    }
+    
+    /**
      * Crea un pedido completo con todos sus artículos
      * @param array $datosEncabezado Datos del encabezado
      * @param array $articulos Array de artículos con cantidad
@@ -575,6 +604,8 @@ class PedidoManager {
                     );
                 }
             }
+            
+            $this->actualizarTotalPedido($idGva21);
             
             // Commit transacción
             sqlsrv_commit($this->cid);
