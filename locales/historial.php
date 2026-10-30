@@ -421,15 +421,19 @@ $chartData = [
                                         $cant = (float)$v['CANT'];
                                         $cantPend = (float)$v['CANT_PEND'];
                                         $finPicking = $v['FECHA_FIN_PICKING'];
-                                        if ($cant == $cantPend) {
+                                        $tangoEstado = isset($v['ESTADO']) ? (int)$v['ESTADO'] : null;
+                                        if ($tangoEstado === 5) {
+                                            $estado = 'Anulado';
+                                            $badgeClass = 'bg-red-100 text-red-800';
+                                        } elseif ($cant > 0 && $cant == $cantPend && empty($finPicking)) {
                                             $estado = 'Cargado';
                                             $badgeClass = 'bg-gray-100 text-gray-600';
-                                        } elseif ($cant > $cantPend && empty($finPicking)) {
-                                            $estado = 'Preparación';
-                                            $badgeClass = 'bg-yellow-100 text-yellow-800';
-                                        } else {
+                                        } elseif ($cantPend <= 0 || !empty($finPicking) || $tangoEstado === 4) {
                                             $estado = 'Preparado';
                                             $badgeClass = 'bg-green-100 text-green-800';
+                                        } else {
+                                            $estado = 'Preparación';
+                                            $badgeClass = 'bg-yellow-100 text-yellow-800';
                                         }
 
                                         $tipo = tipoDePedido($v['TALON_PED'] ?? 0);
