@@ -371,7 +371,20 @@ class PedidoManager {
         sqlsrv_free_stmt($stmt);
         return true;
     }
-    
+
+    /**
+     * Excluye de la lista los productos de rubros que los mayoristas no pueden comprar.
+     * @param array $productos Array de productos con clave RUBRO
+     * @return array Productos sin los rubros excluidos
+     */
+    private function excluirRubros($productos) {
+        $rubrosExcluidos = array('PACKAGING');
+        return array_values(array_filter($productos, function($p) use ($rubrosExcluidos) {
+            $rubro = isset($p['RUBRO']) ? strtoupper(trim($p['RUBRO'])) : '';
+            return !in_array($rubro, $rubrosExcluidos, true);
+        }));
+    }
+
     /**
      * Filtra de una lista de productos aquellos que son componentes de kits
      * también presentes en la misma lista. Así se evita mostrar tanto el kit
@@ -636,18 +649,19 @@ class PedidoManager {
         if($stmt === false){
             throw new Exception("Error al obtener productos: " . print_r(sqlsrv_errors(), true));
         }
-        
+
         // Necesario para stored procedures - avanzar al primer resultado
         sqlsrv_next_result($stmt);
-        
+
         $productos = array();
         while($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)){
             $productos[] = $row;
         }
-        
+
         sqlsrv_free_stmt($stmt);
-        
-        return $productos;
+
+        // Los mayoristas no compran el rubro PACKAGING (lo trae SJ_TIPO_PEDIDO_1)
+        return $this->excluirRubros($productos);
     }
     
     /**
